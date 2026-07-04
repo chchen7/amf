@@ -72,6 +72,9 @@ func AttachRanUeToAmfUeAndReleaseOldIfAny(amfUe *context.AmfUe, ranUe *context.R
 			business_metrics.DecrUeCmIdleStateGauge(ranUe.Ran.AnType)
 		}
 		business_metrics.IncrUeCmConnectedStateGauge(ranUe.Ran.AnType)
+		if amfUe.State[ranUe.Ran.AnType] != nil {
+			business_metrics.IncrUeConnectivityGauge(ranUe.Ran.AnType)
+		}
 		amfUe.AnTypeFlags[ranUe.Ran.AnType] = true
 	}
 
