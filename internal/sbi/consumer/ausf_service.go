@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	amf_context "github.com/free5gc/amf/internal/context"
-	"github.com/free5gc/amf/internal/logger"
 	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/openapi"
 	Nausf_UEAuthentication "github.com/free5gc/openapi/ausf/UEAuthentication"
@@ -104,16 +103,9 @@ func (s *nausfService) SendUEAuthenticationAuthenticateRequest(ue *amf_context.A
 func (s *nausfService) SendAuth5gAkaConfirmRequest(ue *amf_context.AmfUe, resStar string) (
 	*models.ConfirmationDataResponse, *models.ProblemDetails, error,
 ) {
-	var ausfUri string
-	var confirmUri *url.URL
-	var err error
-	if len(ue.AuthenticationCtx.Links["5g-aka"]) > 0 {
-		confirmUri, err = url.Parse(ue.AuthenticationCtx.Links["5g-aka"][0].Href)
-	}
+	confirmUri, ausfUri, err := resolveAUSFConfirmationURI(ue, "5g-aka")
 	if err != nil {
 		return nil, nil, err
-	} else {
-		ausfUri = fmt.Sprintf("%s://%s", confirmUri.Scheme, confirmUri.Host)
 	}
 
 	client := s.getUEAuthenticationClient(ausfUri)
@@ -126,7 +118,7 @@ func (s *nausfService) SendAuth5gAkaConfirmRequest(ue *amf_context.AmfUe, resSta
 		return nil, nil, err
 	}
 	// confirmUri.RequestURI() = "/nausf-auth/v1/ue-authentications/{authctxId}/5g-aka-confirmation"
-	// splituri = ["","nausf-auth","ue-authentications",{authctxId},"5g-aka-confirmation"]
+	// splituri = ["","nausf-auth","v1","ue-authentications",{authctxId},"5g-aka-confirmation"]
 	// authctxId = {authctxId}
 	splituri := strings.Split(confirmUri.RequestURI(), "/")
 	authctxId := ""
@@ -169,15 +161,10 @@ func (s *nausfService) SendAuth5gAkaConfirmRequest(ue *amf_context.AmfUe, resSta
 func (s *nausfService) SendEapAuthConfirmRequest(ue *amf_context.AmfUe, eapMsg nasType.EAPMessage) (
 	response *models.EapSession, problemDetails *models.ProblemDetails, err1 error,
 ) {
-	var confirmUri *url.URL
-	var err error
-	if len(ue.AuthenticationCtx.Links["eap-session"]) > 0 {
-		confirmUri, err = url.Parse(ue.AuthenticationCtx.Links["eap-session"][0].Href)
-	}
+	confirmUri, ausfUri, err := resolveAUSFConfirmationURI(ue, "eap-session")
 	if err != nil {
-		logger.ConsumerLog.Errorf("url Parse failed: %+v", err)
+		return nil, nil, err
 	}
-	ausfUri := fmt.Sprintf("%s://%s", confirmUri.Scheme, confirmUri.Host)
 
 	client := s.getUEAuthenticationClient(ausfUri)
 	if client == nil {
@@ -185,7 +172,7 @@ func (s *nausfService) SendEapAuthConfirmRequest(ue *amf_context.AmfUe, eapMsg n
 	}
 
 	// confirmUri.RequestURI() = "/nausf-auth/v1/ue-authentications/{authctxId}/eap-session"
-	// splituri = ["","nausf-auth","ue-authentications",{authctxId},"eap-session"]
+	// splituri = ["","nausf-auth","v1","ue-authentications",{authctxId},"eap-session"]
 	// authctxId = {authctxId}
 	splituri := strings.Split(confirmUri.RequestURI(), "/")
 	authctxId := ""
@@ -231,4 +218,60 @@ func (s *nausfService) SendEapAuthConfirmRequest(ue *amf_context.AmfUe, eapMsg n
 	}
 
 	return response, problemDetails, err
+}
+
+func resolveAUSFConfirmationURI(ue *amf_context.AmfUe, linkName string) (*url.URL, string, error) {
+	if ue == nil {
+		return nil, "", fmt.Errorf("AmfUe is nil")
+	}
+	if ue.AuthenticationCtx == nil {
+		return nil, "", fmt.Errorf("ue authentication context is nil")
+	}
+
+	links := ue.AuthenticationCtx.Links[linkName]
+	if len(links) == 0 || strings.TrimSpace(links[0].Href) == "" {
+		return nil, "", fmt.Errorf("ausf confirmation link[%s] is empty", linkName)
+	}
+
+	confirmUri, err := url.Parse(links[0].Href)
+	if err != nil {
+		return nil, "", err
+	}
+	if validateErr := validateAUSFConfirmationURI(confirmUri); validateErr != nil {
+		return nil, "", validateErr
+	}
+
+	ausfUri, err := url.Parse(ue.AusfUri)
+	if err != nil {
+		return nil, "", err
+	}
+	if validateErr := validateAUSFConfirmationURI(ausfUri); validateErr != nil {
+		return nil, "", fmt.Errorf("invalid selected AUSF URI: %w", validateErr)
+	}
+
+	// TODO: If AMF stores all registered endpoints for the selected AUSF
+	// instance, validate against that trusted endpoint set instead.
+	if !strings.EqualFold(confirmUri.Scheme, ausfUri.Scheme) || !strings.EqualFold(confirmUri.Host, ausfUri.Host) {
+		return nil, "", fmt.Errorf("ausf confirmation link[%s] authority %q does not match selected AUSF %q",
+			linkName, confirmUri.Scheme+"://"+confirmUri.Host, ausfUri.Scheme+"://"+ausfUri.Host)
+	}
+
+	return confirmUri, strings.TrimRight(ue.AusfUri, "/"), nil
+}
+
+func validateAUSFConfirmationURI(uri *url.URL) error {
+	if uri == nil {
+		return fmt.Errorf("uri is nil")
+	}
+
+	switch strings.ToLower(uri.Scheme) {
+	case "http", "https":
+	default:
+		return fmt.Errorf("invalid ausf confirmation uri scheme %q", uri.Scheme)
+	}
+	if uri.Host == "" {
+		return fmt.Errorf("ausf confirmation uri host is empty")
+	}
+
+	return nil
 }
