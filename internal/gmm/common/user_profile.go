@@ -72,7 +72,7 @@ func AttachRanUeToAmfUeAndReleaseOldIfAny(amfUe *context.AmfUe, ranUe *context.R
 			business_metrics.DecrUeCmIdleStateGauge(ranUe.Ran.AnType)
 		}
 		business_metrics.IncrUeCmConnectedStateGauge(ranUe.Ran.AnType)
-		if amfUe.State[ranUe.Ran.AnType] != nil {
+		if amfUe.State[ranUe.Ran.AnType] != nil && amfUe.State[ranUe.Ran.AnType].Is(context.Registered) {
 			business_metrics.IncrUeConnectivityGauge(ranUe.Ran.AnType)
 		}
 		amfUe.AnTypeFlags[ranUe.Ran.AnType] = true
@@ -108,6 +108,11 @@ func AttachRanUeToAmfUeAndReleaseOldHandover(amfUe *context.AmfUe, sourceRanUe, 
 
 func ClearHoldingRanUe(ranUe *context.RanUe) {
 	if ranUe != nil {
+		if ranUe.AmfUe != nil && ranUe.AmfUe.State[ranUe.Ran.AnType] != nil {
+			if ranUe.AmfUe.State[ranUe.Ran.AnType].Is(context.Registered) && ranUe.AmfUe.CmConnect(ranUe.Ran.AnType) {
+				business_metrics.DecrUeConnectivityGauge(ranUe.Ran.AnType)
+			}
+		}
 		ranUe.DetachAmfUe()
 		ranUe.Log.Infof("Clear Holding RanUE")
 		causeGroup := ngapType.CausePresentRadioNetwork

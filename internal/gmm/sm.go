@@ -72,6 +72,10 @@ func Registered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		amfUe.GmmStateEnterTime = time.Now()
 		amfUe.ClearRegistrationRequestData(accessType)
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[Registered]")
+		// If we have a radio connection, and we enter the registered state, then we increase the gauge
+		if amfUe.CmConnect(accessType) {
+			business_metrics.IncrUeConnectivityGauge(accessType)
+		}
 
 	case GmmMessageEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
@@ -134,6 +138,10 @@ func Registered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		entryTime := amfUe.GmmStateEnterTime
 		logger.GmmLog.Debugln(event)
 		business_metrics.DecrGmmStateGauge(string(accessType), string(state.Current()), entryTime)
+		// As we are no longer considered registered, we decrease the ue connectivity counter
+		if amfUe.CmConnect(accessType) {
+			business_metrics.DecrUeConnectivityGauge(accessType)
+		}
 	default:
 		logger.GmmLog.Errorf("Unknown event [%+v]", event)
 	}
