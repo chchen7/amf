@@ -255,7 +255,12 @@ func CreatePDUSession(ulNasTransport *nasMessage.ULNASTransport,
 			if snssaiInfo, ok := ue.SmfSelectionData.SubscribedSnssaiInfos[snssaiStr]; ok {
 				for _, dnnInfo := range snssaiInfo.DnnInfos {
 					if dnnInfo.DefaultDnnIndicator {
-						dnn = dnnInfo.Dnn.(string)
+						dnnStr, isStr := dnnInfo.Dnn.(string)
+						if !isStr {
+							ue.GmmLog.Warnf("skip DNN with non-string type %T: %v", dnnInfo.Dnn, dnnInfo.Dnn)
+							continue
+						}
+						dnn = dnnStr
 					}
 				}
 			}
@@ -1295,7 +1300,12 @@ func assignLadnInfo(ue *context.AmfUe, accessType models.AccessType) {
 			} else {
 				for _, snssaiInfos := range ue.SmfSelectionData.SubscribedSnssaiInfos {
 					for _, dnnInfo := range snssaiInfos.DnnInfos {
-						if ladn, ok := amfSelf.LadnPool[dnnInfo.Dnn.(string)]; ok { // check if this dnn is a ladn
+						dnnStr, isStr := dnnInfo.Dnn.(string)
+						if !isStr {
+							ue.GmmLog.Warnf("skip DNN with non-string type %T: %v", dnnInfo.Dnn, dnnInfo.Dnn)
+							continue
+						}
+						if ladn, ok := amfSelf.LadnPool[dnnStr]; ok { // check if this dnn is a ladn
 							if ue.TaiListInRegistrationArea(ladn.TaiList, accessType) {
 								ue.LadnInfo = append(ue.LadnInfo, ladn)
 							}
@@ -1316,8 +1326,13 @@ func assignLadnInfo(ue *context.AmfUe, accessType models.AccessType) {
 	} else if ue.SmfSelectionData != nil {
 		for _, snssaiInfos := range ue.SmfSelectionData.SubscribedSnssaiInfos {
 			for _, dnnInfo := range snssaiInfos.DnnInfos {
-				if dnnInfo.Dnn != "*" {
-					if ladn, ok := amfSelf.LadnPool[dnnInfo.Dnn.(string)]; ok {
+				dnnStr, isStr := dnnInfo.Dnn.(string)
+				if !isStr {
+					ue.GmmLog.Warnf("skip DNN with non-string type %T: %v", dnnInfo.Dnn, dnnInfo.Dnn)
+					continue
+				}
+				if dnnStr != "*" {
+					if ladn, ok := amfSelf.LadnPool[dnnStr]; ok {
 						if ue.TaiListInRegistrationArea(ladn.TaiList, accessType) {
 							ue.LadnInfo = append(ue.LadnInfo, ladn)
 						}
