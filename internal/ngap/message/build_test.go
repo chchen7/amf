@@ -1,3 +1,4 @@
+//nolint:lll // Golden byte fixtures are intentionally kept as contiguous protocol values.
 package message
 
 import (
@@ -30,7 +31,7 @@ func TestBuildDownlinkNasTransportGolden(t *testing.T) {
 
 	decoded, err := ngap.Decoder(got)
 	require.NoError(t, err)
-	require.Equal(t, int64(ngapType.ProcedureCodeDownlinkNASTransport),
+	require.Equal(t, ngapType.ProcedureCodeDownlinkNASTransport,
 		decoded.InitiatingMessage.ProcedureCode.Value)
 }
 
@@ -41,7 +42,7 @@ func TestBuildNGResetAcknowledgeMinimalGolden(t *testing.T) {
 
 	decoded, err := ngap.Decoder(got)
 	require.NoError(t, err)
-	require.Equal(t, int64(ngapType.ProcedureCodeNGReset), decoded.SuccessfulOutcome.ProcedureCode.Value)
+	require.Equal(t, ngapType.ProcedureCodeNGReset, decoded.SuccessfulOutcome.ProcedureCode.Value)
 }
 
 func TestBuildOverloadStopGolden(t *testing.T) {
@@ -51,7 +52,7 @@ func TestBuildOverloadStopGolden(t *testing.T) {
 
 	decoded, err := ngap.Decoder(got)
 	require.NoError(t, err)
-	require.Equal(t, int64(ngapType.ProcedureCodeOverloadStop), decoded.InitiatingMessage.ProcedureCode.Value)
+	require.Equal(t, ngapType.ProcedureCodeOverloadStop, decoded.InitiatingMessage.ProcedureCode.Value)
 }
 
 // BuildTraceStart is currently a placeholder: it creates no NGAP procedure
@@ -213,7 +214,7 @@ var amfNGAPGolden = map[string]string{
 	"handover_command":                           "200c0029000005000a0005600102030400550005c005060708001d000100003b40050000010101006a00020101",
 	"handover_request":                           "000d007c00000a000a00056001020304001d000100000f40020000006e000a0c0bebc2003005f5e10000770009000000000000000000005d00210000000000000000000000000000000000000000000000000000000000000000000049000700000100200101000000050201010203006500020101001c00070002f839cafe00",
 	"path_switch_request_acknowledge":            "20190059000006000a4005600102030400554005c00506070800770009000000000000000000005d0021000000000000000000000000000000000000000000000000000000000000000000004d40050000010101000000050201010203",
-	"amf_status_indication":                     "000140150000010078000e002002f839cafe000180414d4631",
+	"amf_status_indication":                      "000140150000010078000e002002f839cafe000180414d4631",
 }
 
 func configureGoldenAMFContext() {

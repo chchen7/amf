@@ -1,3 +1,4 @@
+//nolint:lll // Golden byte fixtures are intentionally kept as contiguous protocol values.
 package message
 
 import (
@@ -29,8 +30,8 @@ func TestBuildIdentityRequestSUCIGolden(t *testing.T) {
 
 	decoded := nas.NewMessage()
 	require.NoError(t, decoded.PlainNasDecode(&got))
-	require.Equal(t, uint8(nas.MsgTypeIdentityRequest), decoded.GmmHeader.GetMessageType())
-	require.Equal(t, uint8(nasMessage.MobileIdentity5GSTypeSuci),
+	require.Equal(t, nas.MsgTypeIdentityRequest, decoded.GmmHeader.GetMessageType())
+	require.Equal(t, nasMessage.MobileIdentity5GSTypeSuci,
 		decoded.GmmMessage.IdentityRequest.SpareHalfOctetAndIdentityType.GetTypeOfIdentity())
 }
 
@@ -58,7 +59,7 @@ func TestBuildAuthenticationRequest5GAKAGolden(t *testing.T) {
 
 	decoded := nas.NewMessage()
 	require.NoError(t, decoded.PlainNasDecode(&got))
-	require.Equal(t, uint8(nas.MsgTypeAuthenticationRequest), decoded.GmmHeader.GetMessageType())
+	require.Equal(t, nas.MsgTypeAuthenticationRequest, decoded.GmmHeader.GetMessageType())
 	require.Equal(t, uint8(1),
 		decoded.GmmMessage.AuthenticationRequest.SpareHalfOctetAndNgksi.GetNasKeySetIdentifiler())
 }
@@ -76,7 +77,9 @@ func TestAMFNASBuilderGoldenBaseline(t *testing.T) {
 			cause, timerUnit := uint8(0x07), uint8(0x05)
 			return BuildDLNASTransport(ue, models.AccessType__3_GPP_ACCESS, 1, []byte{1, 2, 3}, 1, &cause, &timerUnit, 2)
 		}},
-		{"notification", func(ue *context.AmfUe) ([]byte, error) { return BuildNotification(ue, models.AccessType__3_GPP_ACCESS) }},
+		{"notification", func(ue *context.AmfUe) ([]byte, error) {
+			return BuildNotification(ue, models.AccessType__3_GPP_ACCESS)
+		}},
 		{"service_accept", func(ue *context.AmfUe) ([]byte, error) {
 			return BuildServiceAccept(ue, models.AccessType__3_GPP_ACCESS, nil, nil, nil, nil)
 		}},
