@@ -1754,6 +1754,17 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 	ue.StopT3513()
 	ue.StopT3565()
 
+	amfSelf := context.GetSelf()
+
+	// Check TAI
+	if !context.InTaiList(ue.Tai, amfSelf.SupportTaiLists) {
+		ue.GmmLog.Warnf("Service Request rejected: UE TAI %v is not in AMF SupportTaiLists", ue.Tai)
+		gmm_message.SendServiceReject(ue.RanUe[anType], nil, ie.Cause5GMM_TrackingAreaNotAllowed)
+		ngap_message.SendUEContextReleaseCommand(ue.RanUe[anType],
+			context.UeContextN2NormalRelease, ngap_message.CauseChoiceNas, ngapType.CauseNasPresentNormalRelease)
+		return nil
+	}
+
 	// Set No ongoing
 	if procedure := ue.OnGoing(anType).Procedure; procedure == context.OnGoingProcedurePaging {
 		ue.SetOnGoing(anType, &context.OnGoing{
