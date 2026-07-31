@@ -347,7 +347,7 @@ func (ue *AmfUe) DetachRanUe(anType models.AccessType) {
 	business_metrics.IncrUeCmIdleStateGauge(anType)
 	business_metrics.DecrUeCmConnectedStateGauge(anType)
 	// We want only to decrement the ue connectivity gauge if we remove the ran connection of the registered ue.
-	if ue.State[anType] != nil && ue.State[anType].Current() == Registered {
+	if ue.State[anType] != nil && ue.State[anType].Is(Registered) {
 		business_metrics.DecrUeConnectivityGauge(anType)
 	}
 
