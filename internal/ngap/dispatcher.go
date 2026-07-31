@@ -1,12 +1,15 @@
 package ngap
 
 import (
+	"errors"
 	"net"
+	"reflect"
 
 	"github.com/free5gc/amf/internal/context"
 	"github.com/free5gc/amf/internal/logger"
-	"github.com/free5gc/ngap"
-	"github.com/free5gc/ngap/ngapType"
+	ngap_message "github.com/free5gc/amf/internal/ngap/message"
+	ngapIE "github.com/free5gc/ngap/ie"
+	ngapMessage "github.com/free5gc/ngap/message"
 	"github.com/free5gc/sctp"
 )
 
@@ -24,20 +27,21 @@ func Dispatch(conn net.Conn, msg []byte) {
 		return
 	}
 
-	pdu, err := ngap.Decoder(msg)
+	decoded, err := ngapMessage.Parse(msg)
 	if err != nil {
 		logger.NgapLog.Errorf("NGAP decode error: %+v", err)
+		if ran, ok := amfSelf.AmfRanFindByConn(conn); ok {
+			handleDecodeError(ran, decoded, err)
+		}
 		return
 	}
-	if pdu == nil {
+	if decoded == nil {
 		logger.NgapLog.Error("NGAP Message is nil")
 		return
 	}
-
 	ran, ok := amfSelf.AmfRanFindByConn(conn)
 	if !ok {
-		isNGSetup := pdu.Present == ngapType.NGAPPDUPresentInitiatingMessage &&
-			pdu.InitiatingMessage.ProcedureCode.Value == ngapType.ProcedureCodeNGSetup
+		_, isNGSetup := decoded.(*ngapMessage.NGSetupRequest)
 		if isNGSetup {
 			addr := conn.RemoteAddr()
 			if addr == nil {
@@ -52,7 +56,53 @@ func Dispatch(conn net.Conn, msg []byte) {
 		}
 	}
 
-	dispatchMain(ran, pdu)
+	dispatchMain(ran, decoded, msg)
+}
+
+func handleDecodeError(ran *context.AmfRan, decoded ngapMessage.Message, decodeErr error) {
+	var cause *ngapIE.Cause
+	var criticalityDiagnostics *ngapIE.CriticalityDiagnostics
+
+	var transferSyntaxErr *ngapIE.TransferSyntaxErr
+	var abstractSyntaxErr *ngapIE.AbstractSyntaxErr
+	switch {
+	case errors.As(decodeErr, &transferSyntaxErr):
+		cause = transferSyntaxErr.GetCause()
+	case errors.As(decodeErr, &abstractSyntaxErr):
+		cause, _ = abstractSyntaxErr.GetCause()
+		criticalityDiagnostics, _ = abstractSyntaxErr.GetCritDiag(true)
+	default:
+		return
+	}
+	if cause == nil && criticalityDiagnostics == nil {
+		return
+	}
+
+	amfID, ranID := messageUEIDs(decoded)
+	ngap_message.SendErrorIndication(ran, amfID, ranID, cause, criticalityDiagnostics)
+}
+
+func messageUEIDs(decoded ngapMessage.Message) (*ngapIE.AMFUENGAPID, *ngapIE.RANUENGAPID) {
+	if decoded == nil {
+		return nil, nil
+	}
+	value := reflect.ValueOf(decoded)
+	if value.Kind() != reflect.Pointer || value.IsNil() {
+		return nil, nil
+	}
+	value = value.Elem()
+
+	var amfID *ngapIE.AMFUENGAPID
+	if field := value.FieldByName("AMFUENGAPID"); field.IsValid() && field.Kind() == reflect.Pointer &&
+		!field.IsNil() {
+		amfID, _ = field.Interface().(*ngapIE.AMFUENGAPID)
+	}
+	var ranID *ngapIE.RANUENGAPID
+	if field := value.FieldByName("RANUENGAPID"); field.IsValid() && field.Kind() == reflect.Pointer &&
+		!field.IsNil() {
+		ranID, _ = field.Interface().(*ngapIE.RANUENGAPID)
+	}
+	return amfID, ranID
 }
 
 func HandleSCTPNotification(conn net.Conn, notification sctp.Notification) {

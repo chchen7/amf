@@ -12,13 +12,15 @@ import (
 	gmm_common "github.com/free5gc/amf/internal/gmm/common"
 	"github.com/free5gc/amf/internal/logger"
 	"github.com/free5gc/amf/internal/nas/nas_security"
-	"github.com/free5gc/nas/security"
+	nas_message "github.com/free5gc/nas/message"
+	"github.com/free5gc/openapi"
+	"github.com/free5gc/openapi/mediatype/multipart"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/util/metrics/sbi"
 )
 
 // TS 29.518 5.2.2.2.3
-func (p *Processor) HandleCreateUEContextRequest(c *gin.Context, createUeContextRequest models.CreateUeContextRequest) {
+func (p *Processor) HandleCreateUEContextRequest(c *gin.Context, createUeContextRequest models.CreateUEContextRequestBody) {
 	logger.CommLog.Infof("Handle Create UE Context Request")
 
 	ueContextID := c.Param("ueContextId")
@@ -28,12 +30,12 @@ func (p *Processor) HandleCreateUEContextRequest(c *gin.Context, createUeContext
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, ueContextCreateError.JsonData.Error.Cause)
 		c.JSON(int(ueContextCreateError.JsonData.Error.Status), ueContextCreateError)
 	} else {
-		c.JSON(http.StatusCreated, createUeContextResponse)
+		c.Render(http.StatusCreated, openapi.MultipartRelatedRender{Data: createUeContextResponse})
 	}
 }
 
-func (p *Processor) CreateUEContextProcedure(ueContextID string, createUeContextRequest models.CreateUeContextRequest) (
-	*models.CreateUeContextResponse201, *models.CreateUeContextResponse403,
+func (p *Processor) CreateUEContextProcedure(ueContextID string, createUeContextRequest models.CreateUEContextRequestBody) (
+	*models.CreateUEContextResponse201, *models.CreateUEContextResponse403,
 ) {
 	amfSelf := context.GetSelf()
 	ueContextCreateData := createUeContextRequest.JsonData
@@ -43,13 +45,13 @@ func (p *Processor) CreateUEContextProcedure(ueContextID string, createUeContext
 		ueContextCreateData.TargetId.Tai.PlmnId == nil ||
 		ueContextCreateData.PduSessionList == nil || ueContextCreateData.SourceToTargetData == nil ||
 		ueContextCreateData.N2NotifyUri == "" {
-		ueCtxCreateError := models.UeContextCreateError{
+		ueCtxCreateError := models.Amf_Comm_UeContextCreateError{
 			Error: &models.ProblemDetails{
 				Status: http.StatusForbidden,
 				Cause:  "HANDOVER_FAILURE",
 			},
 		}
-		ueContextCreateError := &models.CreateUeContextResponse403{
+		ueContextCreateError := &models.CreateUEContextResponse403{
 			JsonData: &ueCtxCreateError,
 		}
 		return nil, ueContextCreateError
@@ -61,9 +63,9 @@ func (p *Processor) CreateUEContextProcedure(ueContextID string, createUeContext
 
 	// amfSelf.AmfRanSetByRanId(*ueContextCreateData.TargetId.RanNodeId)
 	// ue.N1N2Message[ueContextId] = &context.N1N2Message{}
-	// ue.N1N2Message[ueContextId].Request.JsonData = &models.N1N2MessageTransferReqData{
-	// 	N2InfoContainer: &models.N2InfoContainer{
-	// 		SmInfo: &models.N2SmInformation{
+	// ue.N1N2Message[ueContextId].Request.JsonData = &models.Amf_Comm_N1N2MessageTransferReqData{
+	// 	N2InfoContainer: &models.Amf_Comm_N2InfoContainer{
+	// 		SmInfo: &models.Amf_Comm_N2SmInformation{
 	// 			N2InfoContent: ueContextCreateData.SourceToTargetData,
 	// 		},
 	// 	},
@@ -74,7 +76,7 @@ func (p *Processor) CreateUEContextProcedure(ueContextID string, createUeContext
 	supportedTAI := context.NewSupportedTAI()
 	supportedTAI.Tai.Tac = ueContextCreateData.TargetId.Tai.Tac
 	supportedTAI.Tai.PlmnId = ueContextCreateData.TargetId.Tai.PlmnId
-	// ue.N1N2MessageSubscribeInfo[ueContextID] = &models.UeN1N2InfoSubscriptionCreateData{
+	// ue.N1N2MessageSubscribeInfo[ueContextID] = &models.Amf_Comm_UeN1N2InfoSubscriptionCreateData{
 	// 	N2NotifyCallbackUri: ueContextCreateData.N2NotifyUri,
 	// }
 	ue.UnauthenticatedSupi = ueContextCreateData.UeContext.SupiUnauthInd
@@ -120,9 +122,9 @@ func (p *Processor) CreateUEContextProcedure(ueContextID string, createUeContext
 	// ueContextCreateData.UeContext.MmContextList
 	// ue.CurPduSession.PduSessionId = ueContextCreateData.UeContext.SessionContextList.
 	// ue.TraceData = ueContextCreateData.UeContext.TraceData
-	createUeContextResponse := new(models.CreateUeContextResponse201)
-	createUeContextResponse.JsonData = &models.UeContextCreatedData{
-		UeContext: &models.UeContext{
+	createUeContextResponse := new(models.CreateUEContextResponse201)
+	createUeContextResponse.JsonData = &models.Amf_Comm_UeContextCreatedData{
+		UeContext: &models.Amf_Comm_UeContext{
 			Supi: ueContextCreateData.UeContext.Supi,
 		},
 	}
@@ -144,7 +146,7 @@ func (p *Processor) CreateUEContextProcedure(ueContextID string, createUeContext
 }
 
 // TS 29.518 5.2.2.2.4
-func (p *Processor) HandleReleaseUEContextRequest(c *gin.Context, ueContextRelease models.UeContextRelease) {
+func (p *Processor) HandleReleaseUEContextRequest(c *gin.Context, ueContextRelease models.Amf_Comm_UEContextRelease) {
 	logger.CommLog.Info("Handle Release UE Context Request")
 
 	ueContextID := c.Param("ueContextId")
@@ -159,7 +161,7 @@ func (p *Processor) HandleReleaseUEContextRequest(c *gin.Context, ueContextRelea
 }
 
 func (p *Processor) ReleaseUEContextProcedure(ueContextID string,
-	ueContextRelease models.UeContextRelease,
+	ueContextRelease models.Amf_Comm_UEContextRelease,
 ) *models.ProblemDetails {
 	amfSelf := context.GetSelf()
 
@@ -207,23 +209,26 @@ func (p *Processor) ReleaseUEContextProcedure(ueContextID string,
 	return nil
 }
 
-func (p *Processor) HandleMobiRegUe(ue *context.AmfUe, ueContextTransferRspData *models.UeContextTransferRspData,
-	ueContextTransferResponse *models.UeContextTransferResponse200,
+func (p *Processor) HandleMobiRegUe(ue *context.AmfUe, ueContextTransferRspData *models.Amf_Comm_UeContextTransferRspData,
+	ueContextTransferResponse *models.UEContextTransferResponse200,
 ) {
-	ueContextTransferRspData.UeRadioCapability = &models.N2InfoContent{
+	ueContextTransferRspData.UeRadioCapability = &models.Amf_Comm_N2InfoContent{
 		NgapMessageType: 0,
-		NgapIeType:      models.AmfCommunicationNgapIeType_UE_RADIO_CAPABILITY,
+		NgapIeType:      models.Amf_Comm_NgapIeType_UE_RADIO_CAPABILITY,
 		NgapData: &models.RefToBinaryData{
 			ContentId: "n2Info",
 		},
 	}
 	b := []byte(ue.UeRadioCapability)
-	copy(ueContextTransferResponse.BinaryDataN2Information, b)
+	ueContextTransferResponse.BinaryDataN2Information = &multipart.RelatedContent{
+		ContentID: "n2Info",
+		Content:   b,
+	}
 }
 
 // TS 29.518 5.2.2.2.1
 func (p *Processor) HandleUEContextTransferRequest(c *gin.Context,
-	ueContextTransferRequest models.UeContextTransferRequest,
+	ueContextTransferRequest models.UEContextTransferRequestBody,
 ) {
 	logger.CommLog.Info("Handle UE Context Transfer Request")
 
@@ -234,13 +239,13 @@ func (p *Processor) HandleUEContextTransferRequest(c *gin.Context,
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, problemDetails.Cause)
 		c.JSON(int(problemDetails.Status), problemDetails)
 	} else {
-		c.JSON(http.StatusOK, ueContextTransferResponse)
+		c.Render(http.StatusOK, openapi.MultipartRelatedRender{Data: ueContextTransferResponse})
 	}
 }
 
 func (p *Processor) UEContextTransferProcedure(ueContextID string,
-	ueContextTransferRequest models.UeContextTransferRequest) (
-	*models.UeContextTransferResponse200, *models.ProblemDetails,
+	ueContextTransferRequest models.UEContextTransferRequestBody) (
+	*models.UEContextTransferResponse200, *models.ProblemDetails,
 ) {
 	amfSelf := context.GetSelf()
 
@@ -275,8 +280,8 @@ func (p *Processor) UEContextTransferProcedure(ueContextID string,
 	ue.Lock.Lock()
 	defer ue.Lock.Unlock()
 
-	ueContextTransferResponse := &models.UeContextTransferResponse200{
-		JsonData: new(models.UeContextTransferRspData),
+	ueContextTransferResponse := &models.UEContextTransferResponse200{
+		JsonData: new(models.Amf_Comm_UeContextTransferRspData),
 	}
 	ueContextTransferRspData := ueContextTransferResponse.JsonData
 
@@ -289,9 +294,9 @@ func (p *Processor) UEContextTransferProcedure(ueContextID string,
 	//	}
 
 	switch UeContextTransferReqData.Reason {
-	case models.TransferReason_INIT_REG:
+	case models.Amf_Comm_TransferReason_INIT_REG:
 		_, integrityProtected, err := nas_security.Decode(ue, UeContextTransferReqData.AccessType,
-			ueContextTransferRequest.BinaryDataN1Message, true)
+			relatedContentBytes(ueContextTransferRequest.BinaryDataN1Message), true)
 		if err != nil {
 			problemDetails := &models.ProblemDetails{
 				Status: http.StatusForbidden,
@@ -310,9 +315,9 @@ func (p *Processor) UEContextTransferProcedure(ueContextID string,
 			return nil, problemDetails
 		}
 		// TODO: handle condition of TS 29.518 5.2.2.2.1.1 step 2a case b
-	case models.TransferReason_MOBI_REG:
+	case models.Amf_Comm_TransferReason_MOBI_REG:
 		_, integrityProtected, err := nas_security.Decode(ue, UeContextTransferReqData.AccessType,
-			ueContextTransferRequest.BinaryDataN1Message, false)
+			relatedContentBytes(ueContextTransferRequest.BinaryDataN1Message), false)
 		if err != nil {
 			problemDetails := &models.ProblemDetails{
 				Status: http.StatusForbidden,
@@ -332,7 +337,7 @@ func (p *Processor) UEContextTransferProcedure(ueContextID string,
 		}
 		p.HandleMobiRegUe(ue, ueContextTransferRspData, ueContextTransferResponse)
 
-	case models.TransferReason_MOBI_REG_UE_VALIDATED:
+	case models.Amf_Comm_TransferReason_MOBI_REG_UE_VALIDATED:
 		ueContextTransferRspData.UeContext = p.buildUEContextModel(ue, UeContextTransferReqData.Reason)
 		p.HandleMobiRegUe(ue, ueContextTransferRspData, ueContextTransferResponse)
 
@@ -352,41 +357,41 @@ func (p *Processor) UEContextTransferProcedure(ueContextID string,
 	return ueContextTransferResponse, nil
 }
 
-func (p *Processor) buildUEContextModel(ue *context.AmfUe, reason models.TransferReason) *models.UeContext {
-	ueContext := new(models.UeContext)
+func (p *Processor) buildUEContextModel(ue *context.AmfUe, reason models.Amf_Comm_TransferReason) *models.Amf_Comm_UeContext {
+	ueContext := new(models.Amf_Comm_UeContext)
 	ueContext.Supi = ue.Supi
 	ueContext.SupiUnauthInd = ue.UnauthenticatedSupi
-	if reason == models.TransferReason_INIT_REG || reason == models.TransferReason_MOBI_REG {
-		var mmContext models.MmContext
-		mmContext.AccessType = models.AccessType__3_GPP_ACCESS
-		NasSecurityMode := new(models.NasSecurityMode)
+	if reason == models.Amf_Comm_TransferReason_INIT_REG || reason == models.Amf_Comm_TransferReason_MOBI_REG {
+		var mmContext models.Amf_Comm_MmContext
+		mmContext.AccessType = models.AccessType_3_GPP_ACCESS
+		NasSecurityMode := new(models.Amf_Comm_NasSecurityMode)
 		switch ue.IntegrityAlg {
-		case security.AlgIntegrity128NIA0:
-			NasSecurityMode.IntegrityAlgorithm = models.IntegrityAlgorithm_NIA0
-		case security.AlgIntegrity128NIA1:
-			NasSecurityMode.IntegrityAlgorithm = models.IntegrityAlgorithm_NIA1
-		case security.AlgIntegrity128NIA2:
-			NasSecurityMode.IntegrityAlgorithm = models.IntegrityAlgorithm_NIA2
-		case security.AlgIntegrity128NIA3:
-			NasSecurityMode.IntegrityAlgorithm = models.IntegrityAlgorithm_NIA3
+		case uint8(nas_message.AlgIntegrity128NIA0):
+			NasSecurityMode.IntegrityAlgorithm = models.Amf_Comm_IntegrityAlgorithm_NIA0
+		case uint8(nas_message.AlgIntegrity128NIA1):
+			NasSecurityMode.IntegrityAlgorithm = models.Amf_Comm_IntegrityAlgorithm_NIA1
+		case uint8(nas_message.AlgIntegrity128NIA2):
+			NasSecurityMode.IntegrityAlgorithm = models.Amf_Comm_IntegrityAlgorithm_NIA2
+		case uint8(nas_message.AlgIntegrity128NIA3):
+			NasSecurityMode.IntegrityAlgorithm = models.Amf_Comm_IntegrityAlgorithm_NIA3
 		}
 		switch ue.CipheringAlg {
-		case security.AlgCiphering128NEA0:
-			NasSecurityMode.CipheringAlgorithm = models.CipheringAlgorithm_NEA0
-		case security.AlgCiphering128NEA1:
-			NasSecurityMode.CipheringAlgorithm = models.CipheringAlgorithm_NEA1
-		case security.AlgCiphering128NEA2:
-			NasSecurityMode.CipheringAlgorithm = models.CipheringAlgorithm_NEA2
-		case security.AlgCiphering128NEA3:
-			NasSecurityMode.CipheringAlgorithm = models.CipheringAlgorithm_NEA3
+		case uint8(nas_message.AlgCiphering128NEA0):
+			NasSecurityMode.CipheringAlgorithm = models.Amf_Comm_CipheringAlgorithm_NEA0
+		case uint8(nas_message.AlgCiphering128NEA1):
+			NasSecurityMode.CipheringAlgorithm = models.Amf_Comm_CipheringAlgorithm_NEA1
+		case uint8(nas_message.AlgCiphering128NEA2):
+			NasSecurityMode.CipheringAlgorithm = models.Amf_Comm_CipheringAlgorithm_NEA2
+		case uint8(nas_message.AlgCiphering128NEA3):
+			NasSecurityMode.CipheringAlgorithm = models.Amf_Comm_CipheringAlgorithm_NEA3
 		}
-		NgKsi := new(models.NgKsi)
+		NgKsi := new(models.Amf_Comm_NgKsi)
 		NgKsi.Ksi = ue.NgKsi.Ksi
 		NgKsi.Tsc = ue.NgKsi.Tsc
-		KeyAmf := new(models.KeyAmf)
-		KeyAmf.KeyType = models.KeyAmfType_KAMF
+		KeyAmf := new(models.Amf_Comm_KeyAmf)
+		KeyAmf.KeyType = models.Amf_Comm_KeyAmfType_KAMF
 		KeyAmf.KeyVal = ue.Kamf
-		SeafData := new(models.SeafData)
+		SeafData := new(models.Amf_Comm_SeafData)
 		SeafData.NgKsi = NgKsi
 		SeafData.KeyAmf = KeyAmf
 		if ue.NH != nil {
@@ -397,24 +402,26 @@ func (p *Processor) buildUEContextModel(ue *context.AmfUe, reason models.Transfe
 		SeafData.KeyAmfHDerivationInd = false
 		ueContext.SeafData = SeafData
 		mmContext.NasSecurityMode = NasSecurityMode
-		if ue.UESecurityCapability.Buffer != nil {
-			mmContext.UeSecurityCapability = base64.StdEncoding.EncodeToString(ue.UESecurityCapability.Buffer)
+		if ue.UESecurityCapability.Length > 0 {
+			if capability, err := ue.UESecurityCapability.MarshalBinary(); err == nil {
+				mmContext.UeSecurityCapability = base64.StdEncoding.EncodeToString(capability)
+			}
 		}
 		mmContext.NasDownlinkCount = int32(ue.DLCount.Get())
 		mmContext.NasUplinkCount = int32(ue.ULCount.Get())
-		if ue.AllowedNssai[models.AccessType__3_GPP_ACCESS] != nil {
-			for _, allowedSnssai := range ue.AllowedNssai[models.AccessType__3_GPP_ACCESS] {
+		if ue.AllowedNssai[models.AccessType_3_GPP_ACCESS] != nil {
+			for _, allowedSnssai := range ue.AllowedNssai[models.AccessType_3_GPP_ACCESS] {
 				mmContext.AllowedNssai = append(mmContext.AllowedNssai, *(allowedSnssai.AllowedSnssai))
 			}
 		}
 		ueContext.MmContextList = append(ueContext.MmContextList, mmContext)
 	}
-	if reason == models.TransferReason_MOBI_REG_UE_VALIDATED || reason == models.TransferReason_MOBI_REG {
+	if reason == models.Amf_Comm_TransferReason_MOBI_REG_UE_VALIDATED || reason == models.Amf_Comm_TransferReason_MOBI_REG {
 		sessionContextList := &ueContext.SessionContextList
 		ue.SmContextList.Range(func(key, value interface{}) bool {
 			smContext := value.(*context.SmContext)
 			snssai := smContext.Snssai()
-			pduSessionContext := models.PduSessionContext{
+			pduSessionContext := models.Amf_Comm_PduSessionContext{
 				PduSessionId: smContext.PduSessionID(),
 				SmContextRef: smContext.SmContextRef(),
 				SNssai:       &snssai,
@@ -486,30 +493,30 @@ func (p *Processor) buildUEContextModel(ue *context.AmfUe, reason models.Transfe
 	return ueContext
 }
 
-func (p *Processor) buildAmPolicyReqTriggers(triggers []models.PcfAmPolicyControlRequestTrigger) (
-	amPolicyReqTriggers []models.PolicyReqTrigger,
+func (p *Processor) buildAmPolicyReqTriggers(triggers []models.Pcf_AMPolCtrl_RequestTrigger) (
+	amPolicyReqTriggers []models.Amf_Comm_PolicyReqTrigger,
 ) {
 	for _, trigger := range triggers {
 		switch trigger {
-		case models.PcfAmPolicyControlRequestTrigger_LOC_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.PolicyReqTrigger_LOCATION_CHANGE)
-		case models.PcfAmPolicyControlRequestTrigger_PRA_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.PolicyReqTrigger_PRA_CHANGE)
-		case models.PcfAmPolicyControlRequestTrigger_ALLOWED_NSSAI_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.PolicyReqTrigger_ALLOWED_NSSAI_CHANGE)
-		case models.PcfAmPolicyControlRequestTrigger_NWDAF_DATA_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.PolicyReqTrigger_NWDAF_DATA_CHANGE)
-		case models.PcfAmPolicyControlRequestTrigger_SMF_SELECT_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.PolicyReqTrigger_SMF_SELECT_CHANGE)
-		case models.PcfAmPolicyControlRequestTrigger_ACCESS_TYPE_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.PolicyReqTrigger_ACCESS_TYPE_CHANGE)
+		case models.Pcf_AMPolCtrl_RequestTrigger_LOC_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.Amf_Comm_PolicyReqTrigger_LOCATION_CHANGE)
+		case models.Pcf_AMPolCtrl_RequestTrigger_PRA_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.Amf_Comm_PolicyReqTrigger_PRA_CHANGE)
+		case models.Pcf_AMPolCtrl_RequestTrigger_ALLOWED_NSSAI_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.Amf_Comm_PolicyReqTrigger_ALLOWED_NSSAI_CHANGE)
+		case models.Pcf_AMPolCtrl_RequestTrigger_NWDAF_DATA_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.Amf_Comm_PolicyReqTrigger_NWDAF_DATA_CHANGE)
+		case models.Pcf_AMPolCtrl_RequestTrigger_SMF_SELECT_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.Amf_Comm_PolicyReqTrigger_SMF_SELECT_CHANGE)
+		case models.Pcf_AMPolCtrl_RequestTrigger_ACCESS_TYPE_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.Amf_Comm_PolicyReqTrigger_ACCESS_TYPE_CHANGE)
 		}
 	}
 	return
 }
 
 // TS 29.518 5.2.2.6
-func (p *Processor) HandleAssignEbiDataRequest(c *gin.Context, assignEbiData models.AssignEbiData) {
+func (p *Processor) HandleAssignEbiDataRequest(c *gin.Context, assignEbiData models.Amf_Comm_AssignEbiData) {
 	logger.CommLog.Info("Handle Assign Ebi Data Request")
 
 	ueContextID := c.Param("ueContextId")
@@ -526,8 +533,8 @@ func (p *Processor) HandleAssignEbiDataRequest(c *gin.Context, assignEbiData mod
 	}
 }
 
-func (p *Processor) AssignEbiDataProcedure(ueContextID string, assignEbiData models.AssignEbiData) (
-	*models.AssignedEbiData, *models.AssignEbiError, *models.ProblemDetails,
+func (p *Processor) AssignEbiDataProcedure(ueContextID string, assignEbiData models.Amf_Comm_AssignEbiData) (
+	*models.Amf_Comm_AssignedEbiData, *models.Amf_Comm_AssignEbiError, *models.ProblemDetails,
 ) {
 	amfSelf := context.GetSelf()
 
@@ -546,7 +553,7 @@ func (p *Processor) AssignEbiDataProcedure(ueContextID string, assignEbiData mod
 
 	// TODO: AssignEbiError not used, check it!
 	if _, okSmContextFind := ue.SmContextFindByPDUSessionID(assignEbiData.PduSessionId); okSmContextFind {
-		assignedEbiData := &models.AssignedEbiData{
+		assignedEbiData := &models.Amf_Comm_AssignedEbiData{
 			PduSessionId: assignEbiData.PduSessionId,
 		}
 		return assignedEbiData, nil, nil
@@ -557,7 +564,7 @@ func (p *Processor) AssignEbiDataProcedure(ueContextID string, assignEbiData mod
 
 // TS 29.518 5.2.2.2.2
 func (p *Processor) HandleRegistrationStatusUpdateRequest(c *gin.Context,
-	ueRegStatusUpdateReqData models.UeRegStatusUpdateReqData,
+	ueRegStatusUpdateReqData models.Amf_Comm_UeRegStatusUpdateReqData,
 ) {
 	logger.CommLog.Info("Handle Registration Status Update Request")
 
@@ -573,8 +580,8 @@ func (p *Processor) HandleRegistrationStatusUpdateRequest(c *gin.Context,
 }
 
 func (p *Processor) RegistrationStatusUpdateProcedure(ueContextID string,
-	ueRegStatusUpdateReqData models.UeRegStatusUpdateReqData) (
-	*models.UeRegStatusUpdateRspData, *models.ProblemDetails,
+	ueRegStatusUpdateReqData models.Amf_Comm_UeRegStatusUpdateReqData) (
+	*models.Amf_Comm_UeRegStatusUpdateRspData, *models.ProblemDetails,
 ) {
 	amfSelf := context.GetSelf()
 
@@ -600,12 +607,12 @@ func (p *Processor) RegistrationStatusUpdateProcedure(ueContextID string,
 	ue.Lock.Lock()
 	defer ue.Lock.Unlock()
 
-	ueRegStatusUpdateRspData := new(models.UeRegStatusUpdateRspData)
+	ueRegStatusUpdateRspData := new(models.Amf_Comm_UeRegStatusUpdateRspData)
 
-	if ueRegStatusUpdateReqData.TransferStatus == models.UeContextTransferStatus_TRANSFERRED {
+	if ueRegStatusUpdateReqData.TransferStatus == models.Amf_Comm_UeContextTransferStatus_TRANSFERRED {
 		// remove the individual ueContext resource and release any PDU session(s)
 		for _, pduSessionId := range ueRegStatusUpdateReqData.ToReleaseSessionList {
-			cause := models.SmfPduSessionCause_REL_DUE_TO_SLICE_NOT_AVAILABLE
+			cause := models.Smf_PDUSess_Cause_REL_DUE_TO_SLICE_NOT_AVAILABLE
 			causeAll := &context.CauseAll{
 				Cause: &cause,
 			}
@@ -631,7 +638,7 @@ func (p *Processor) RegistrationStatusUpdateProcedure(ueContextID string,
 			}
 		}
 		// TODO: Currently only consider the 3GPP access type
-		if !ue.UeCmRegistered[models.AccessType__3_GPP_ACCESS] {
+		if !ue.UeCmRegistered[models.AccessType_3_GPP_ACCESS] {
 			gmm_common.RemoveAmfUe(ue, false)
 		}
 	} else {

@@ -9,8 +9,8 @@ func StopAll5GSMMTimers(ue *context.AmfUe) {
 	if ue.T3513 != nil {
 		ue.T3513.Stop()
 		ue.T3513 = nil // clear the timer
-		if ue.OnGoing(models.AccessType__3_GPP_ACCESS).Procedure == context.OnGoingProcedurePaging {
-			ue.SetOnGoing(models.AccessType__3_GPP_ACCESS, &context.OnGoing{
+		if ue.OnGoing(models.AccessType_3_GPP_ACCESS).Procedure == context.OnGoingProcedurePaging {
+			ue.SetOnGoing(models.AccessType_3_GPP_ACCESS, &context.OnGoing{
 				Procedure: context.OnGoingProcedureNothing,
 			})
 		}

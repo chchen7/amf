@@ -10,9 +10,8 @@ import (
 
 	"github.com/free5gc/amf/internal/context"
 	"github.com/free5gc/amf/pkg/factory"
-	"github.com/free5gc/nas"
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/nas/nasType"
+	"github.com/free5gc/nas/ie"
+	nas_message "github.com/free5gc/nas/message"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/util/fsm"
 )
@@ -22,33 +21,33 @@ import (
 func TestBuildIdentityRequestSUCIGolden(t *testing.T) {
 	got, err := BuildIdentityRequest(
 		&context.AmfUe{},
-		models.AccessType__3_GPP_ACCESS,
-		nasMessage.MobileIdentity5GSTypeSuci,
+		models.AccessType_3_GPP_ACCESS,
+		ie.IdType_5GS_SUCI,
 	)
 	require.NoError(t, err)
 	require.Equal(t, []byte{0x7e, 0x00, 0x5b, 0x01}, got)
 
-	decoded := nas.NewMessage()
-	require.NoError(t, decoded.PlainNasDecode(&got))
-	require.Equal(t, nas.MsgTypeIdentityRequest, decoded.GmmHeader.GetMessageType())
-	require.Equal(t, nasMessage.MobileIdentity5GSTypeSuci,
-		decoded.GmmMessage.IdentityRequest.SpareHalfOctetAndIdentityType.GetTypeOfIdentity())
+	decoded, err := nas_message.Parse(got, nil)
+	require.NoError(t, err)
+	identityRequest, ok := decoded.(*nas_message.IdReq)
+	require.True(t, ok)
+	require.Equal(t, ie.IdType_5GS_SUCI, identityRequest.IdType.IdType)
 }
 
 func TestBuildAuthenticationRequest5GAKAGolden(t *testing.T) {
 	ue := &context.AmfUe{
-		NgKsi: models.NgKsi{Tsc: models.ScType_NATIVE, Ksi: 1},
+		NgKsi: models.Amf_Comm_NgKsi{Tsc: models.Amf_Comm_ScType_NATIVE, Ksi: 1},
 		ABBA:  []uint8{0x00, 0x00},
-		AuthenticationCtx: &models.UeAuthenticationCtx{
-			AuthType: models.AusfUeAuthenticationAuthType__5_G_AKA,
-			Var5gAuthData: models.Av5gAka{
+		AuthenticationCtx: &models.Ausf_UEAU_UEAuthenticationCtx{
+			AuthType: models.Ausf_UEAU_AuthType_5_G_AKA,
+			Var5gAuthData: models.Ausf_UEAU_Av5gAka{
 				Rand: "000102030405060708090a0b0c0d0e0f",
 				Autn: "101112131415161718191a1b1c1d1e1f",
 			},
 		},
 	}
 
-	got, err := BuildAuthenticationRequest(ue, models.AccessType__3_GPP_ACCESS)
+	got, err := BuildAuthenticationRequest(ue, models.AccessType_3_GPP_ACCESS)
 	require.NoError(t, err)
 	require.Equal(t, []byte{
 		0x7e, 0x00, 0x56, 0x01, 0x02, 0x00, 0x00, 0x21, 0x00, 0x01, 0x02, 0x03,
@@ -57,11 +56,11 @@ func TestBuildAuthenticationRequest5GAKAGolden(t *testing.T) {
 		0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
 	}, got)
 
-	decoded := nas.NewMessage()
-	require.NoError(t, decoded.PlainNasDecode(&got))
-	require.Equal(t, nas.MsgTypeAuthenticationRequest, decoded.GmmHeader.GetMessageType())
-	require.Equal(t, uint8(1),
-		decoded.GmmMessage.AuthenticationRequest.SpareHalfOctetAndNgksi.GetNasKeySetIdentifiler())
+	decoded, err := nas_message.Parse(got, nil)
+	require.NoError(t, err)
+	authenticationRequest, ok := decoded.(*nas_message.AuthReq)
+	require.True(t, ok)
+	require.Equal(t, uint8(1), authenticationRequest.Ngksi.Ksi)
 }
 
 func TestAMFNASBuilderGoldenBaseline(t *testing.T) {
@@ -75,43 +74,43 @@ func TestAMFNASBuilderGoldenBaseline(t *testing.T) {
 	}{
 		{"dl_nas_transport", func(ue *context.AmfUe) ([]byte, error) {
 			cause, timerUnit := uint8(0x07), uint8(0x05)
-			return BuildDLNASTransport(ue, models.AccessType__3_GPP_ACCESS, 1, []byte{1, 2, 3}, 1, &cause, &timerUnit, 2)
+			return BuildDLNASTransport(ue, models.AccessType_3_GPP_ACCESS, 1, []byte{1, 2, 3}, 1, &cause, &timerUnit, 2)
 		}},
 		{"notification", func(ue *context.AmfUe) ([]byte, error) {
-			return BuildNotification(ue, models.AccessType__3_GPP_ACCESS)
+			return BuildNotification(ue, models.AccessType_3_GPP_ACCESS)
 		}},
 		{"service_accept", func(ue *context.AmfUe) ([]byte, error) {
-			return BuildServiceAccept(ue, models.AccessType__3_GPP_ACCESS, nil, nil, nil, nil)
+			return BuildServiceAccept(ue, models.AccessType_3_GPP_ACCESS, nil, nil, nil, nil)
 		}},
 		{"authentication_reject", func(ue *context.AmfUe) ([]byte, error) {
-			return BuildAuthenticationReject(ue, models.AccessType__3_GPP_ACCESS, "")
+			return BuildAuthenticationReject(ue, models.AccessType_3_GPP_ACCESS, "")
 		}},
 		{"authentication_result", func(ue *context.AmfUe) ([]byte, error) {
-			return BuildAuthenticationResult(ue, models.AccessType__3_GPP_ACCESS, true, "AQID")
+			return BuildAuthenticationResult(ue, models.AccessType_3_GPP_ACCESS, true, "AQIDBA==")
 		}},
 		{"service_reject", func(ue *context.AmfUe) ([]byte, error) {
-			return BuildServiceReject(ue, models.AccessType__3_GPP_ACCESS, nil, 0x07)
+			return BuildServiceReject(ue, models.AccessType_3_GPP_ACCESS, nil, 0x07)
 		}},
 		{"registration_reject", func(ue *context.AmfUe) ([]byte, error) {
-			return BuildRegistrationReject(ue, models.AccessType__3_GPP_ACCESS, 0x0b, "")
+			return BuildRegistrationReject(ue, models.AccessType_3_GPP_ACCESS, 0x0b, "")
 		}},
 		{"security_mode_command", func(ue *context.AmfUe) ([]byte, error) {
-			return BuildSecurityModeCommand(ue, models.AccessType__3_GPP_ACCESS, true, "AQID")
+			return BuildSecurityModeCommand(ue, models.AccessType_3_GPP_ACCESS, true, "AQIDBA==")
 		}},
 		{"deregistration_request", func(ue *context.AmfUe) ([]byte, error) {
 			return BuildDeregistrationRequest(&context.RanUe{AmfUe: ue}, 1, true, 0x07)
 		}},
 		{"deregistration_accept", func(ue *context.AmfUe) ([]byte, error) {
-			return BuildDeregistrationAccept(ue, models.AccessType__3_GPP_ACCESS)
+			return BuildDeregistrationAccept(ue, models.AccessType_3_GPP_ACCESS)
 		}},
 		{"registration_accept", func(ue *context.AmfUe) ([]byte, error) {
-			return BuildRegistrationAccept(ue, models.AccessType__3_GPP_ACCESS, nil, nil, nil, nil)
+			return BuildRegistrationAccept(ue, models.AccessType_3_GPP_ACCESS, nil, nil, nil, nil)
 		}},
 		{"status_5gmm", func(ue *context.AmfUe) ([]byte, error) {
-			return BuildStatus5GMM(ue, models.AccessType__3_GPP_ACCESS, 0x5f)
+			return BuildStatus5GMM(ue, models.AccessType_3_GPP_ACCESS, 0x5f)
 		}},
 		{"configuration_update_command", func(ue *context.AmfUe) ([]byte, error) {
-			payload, err, _ := BuildConfigurationUpdateCommand(ue, models.AccessType__3_GPP_ACCESS,
+			payload, err, _ := BuildConfigurationUpdateCommand(ue, models.AccessType_3_GPP_ACCESS,
 				&context.ConfigurationUpdateCommandFlags{NeedNetworkSlicingIndication: true})
 			return payload, err
 		}},
@@ -131,10 +130,10 @@ var amfNASGolden = map[string]string{
 	"notification":                 "7e0200000000007e006501",
 	"service_accept":               "7e0200000000007e004e",
 	"authentication_reject":        "7e0200000000007e0058",
-	"authentication_result":        "7e0200000000007e005a01000301020338020000",
+	"authentication_result":        "7e0200000000007e005a0100040102030438020000",
 	"service_reject":               "7e0200000000007e004d07",
 	"registration_reject":          "7e0200000000007e00440b",
-	"security_mode_command":        "7e0300000000007e005d0001000000e136010078000301020338020000",
+	"security_mode_command":        "7e0300000000007e005d0001020000e13601007800040102030438020000",
 	"deregistration_request":       "7e0200000000007e0047055807",
 	"deregistration_accept":        "7e0200000000007e0046",
 	"registration_accept":          "7e0200000000007e00420101",
@@ -147,18 +146,18 @@ func newGoldenUE() *context.AmfUe {
 		SecurityContextAvailable: true,
 		CipheringAlg:             0,
 		IntegrityAlg:             0,
-		NgKsi:                    models.NgKsi{Tsc: models.ScType_NATIVE, Ksi: 1},
+		NgKsi:                    models.Amf_Comm_NgKsi{Tsc: models.Amf_Comm_ScType_NATIVE, Ksi: 1},
 		ABBA:                     []uint8{0, 0},
 		KnasEnc:                  [16]uint8{},
 		KnasInt:                  [16]uint8{},
-		UESecurityCapability:     nasType.UESecurityCapability{Buffer: []byte{0, 0}},
+		UESecurityCapability:     ie.UESecCapability{Length: 2},
 		State: map[models.AccessType]*fsm.State{
-			models.AccessType__3_GPP_ACCESS:    fsm.NewState(context.Deregistered),
+			models.AccessType_3_GPP_ACCESS:     fsm.NewState(context.Deregistered),
 			models.AccessType_NON_3_GPP_ACCESS: fsm.NewState(context.Deregistered),
 		},
 		RanUe:            map[models.AccessType]*context.RanUe{},
 		RegistrationArea: map[models.AccessType][]models.Tai{},
-		AllowedNssai:     map[models.AccessType][]models.AllowedSnssai{},
+		AllowedNssai:     map[models.AccessType][]models.Nssf_NSSel_AllowedSnssai{},
 		NASLog:           logrus.NewEntry(logrus.New()),
 	}
 }

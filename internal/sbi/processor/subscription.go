@@ -14,7 +14,7 @@ import (
 
 // TS 29.518 5.2.2.5.1
 func (p *Processor) HandleAMFStatusChangeSubscribeRequest(c *gin.Context,
-	subscriptionDataReq models.AmfCommunicationSubscriptionData,
+	subscriptionDataReq models.Amf_Comm_SubscriptionData,
 ) {
 	logger.CommLog.Info("Handle AMF Status Change Subscribe Request")
 
@@ -29,8 +29,8 @@ func (p *Processor) HandleAMFStatusChangeSubscribeRequest(c *gin.Context,
 	c.JSON(http.StatusCreated, subscriptionDataRsp)
 }
 
-func (p *Processor) AMFStatusChangeSubscribeProcedure(subscriptionDataReq models.AmfCommunicationSubscriptionData) (
-	subscriptionDataRsp models.AmfCommunicationSubscriptionData, locationHeader string,
+func (p *Processor) AMFStatusChangeSubscribeProcedure(subscriptionDataReq models.Amf_Comm_SubscriptionData) (
+	subscriptionDataRsp models.Amf_Comm_SubscriptionData, locationHeader string,
 	problemDetails *models.ProblemDetails,
 ) {
 	amfSelf := context.GetSelf()
@@ -90,7 +90,7 @@ func (p *Processor) AMFStatusChangeUnSubscribeProcedure(subscriptionID string) (
 
 // TS 29.518 5.2.2.5.1.3
 func (p *Processor) HandleAMFStatusChangeSubscribeModify(c *gin.Context,
-	updateSubscriptionData models.AmfCommunicationSubscriptionData,
+	updateSubscriptionData models.Amf_Comm_SubscriptionData,
 ) {
 	logger.CommLog.Info("Handle AMF Status Change Subscribe Modify Request")
 
@@ -108,8 +108,8 @@ func (p *Processor) HandleAMFStatusChangeSubscribeModify(c *gin.Context,
 }
 
 func (p *Processor) AMFStatusChangeSubscribeModifyProcedure(subscriptionID string,
-	subscriptionData models.AmfCommunicationSubscriptionData) (
-	*models.AmfCommunicationSubscriptionData, *models.ProblemDetails,
+	subscriptionData models.Amf_Comm_SubscriptionData) (
+	*models.Amf_Comm_SubscriptionData, *models.ProblemDetails,
 ) {
 	amfSelf := context.GetSelf()
 

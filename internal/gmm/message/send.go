@@ -8,8 +8,8 @@ import (
 	"github.com/free5gc/amf/internal/logger"
 	ngap_message "github.com/free5gc/amf/internal/ngap/message"
 	callback "github.com/free5gc/amf/internal/sbi/processor/notifier"
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/ngap/ngapType"
+	"github.com/free5gc/nas/ie"
+	ngapType "github.com/free5gc/ngap/ie"
 	"github.com/free5gc/openapi/models"
 	nasMetrics "github.com/free5gc/util/metrics/nas"
 )
@@ -81,8 +81,8 @@ func SendNotification(ue *context.RanUe, nasMsg []byte) {
 		}, func() {
 			amfUe.GmmLog.Warnf("T3565 Expires %d times, abort notification procedure", cfg.MaxRetryTimes)
 			amfUe.T3565 = nil // clear the timer
-			if amfUe.OnGoing(models.AccessType__3_GPP_ACCESS).Procedure != context.OnGoingProcedureN2Handover {
-				callback.SendN1N2TransferFailureNotification(amfUe, models.N1N2MessageTransferCause_UE_NOT_RESPONDING)
+			if amfUe.OnGoing(models.AccessType_3_GPP_ACCESS).Procedure != context.OnGoingProcedureN2Handover {
+				callback.SendN1N2TransferFailureNotification(amfUe, models.Amf_Comm_N1N2MessageTransferCause_UE_NOT_RESPONDING)
 			}
 		})
 	}
@@ -507,15 +507,15 @@ func SendDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrati
 			amfUe.GmmLog.Warnf("T3522 Expires %d times, abort deregistration procedure", cfg.MaxRetryTimes)
 			amfUe.T3522 = nil // clear the timer
 			switch accessType {
-			case nasMessage.AccessType3GPP:
+			case ie.AccessType_3gpp:
 				amfUe.GmmLog.Warnln("UE accessType[3GPP] transfer to Deregistered state")
-				amfUe.State[models.AccessType__3_GPP_ACCESS].Set(context.Deregistered)
-			case nasMessage.AccessTypeNon3GPP:
+				amfUe.State[models.AccessType_3_GPP_ACCESS].Set(context.Deregistered)
+			case ie.AccessType_Non3gpp:
 				amfUe.GmmLog.Warnln("UE accessType[Non3GPP] transfer to Deregistered state")
 				amfUe.State[models.AccessType_NON_3_GPP_ACCESS].Set(context.Deregistered)
 			default:
 				amfUe.GmmLog.Warnln("UE accessType[3GPP] transfer to Deregistered state")
-				amfUe.State[models.AccessType__3_GPP_ACCESS].Set(context.Deregistered)
+				amfUe.State[models.AccessType_3_GPP_ACCESS].Set(context.Deregistered)
 				amfUe.GmmLog.Warnln("UE accessType[Non3GPP] transfer to Deregistered state")
 				amfUe.State[models.AccessType_NON_3_GPP_ACCESS].Set(context.Deregistered)
 			}
@@ -663,13 +663,13 @@ func getErrCauseSingleStr(errCause []uint8) string {
 	if len(errCause) > 1 {
 		result += "Multiple Causes : "
 		for i, c := range errCause {
-			result += nasMessage.Cause5GMMToString(c)
+			result += (&ie.Cause5GMM{Value: c}).String()
 			if i < len(errCause)-1 {
 				result += "; "
 			}
 		}
 	} else if len(errCause) == 1 {
-		result = nasMessage.Cause5GMMToString(errCause[0])
+		result = (&ie.Cause5GMM{Value: errCause[0]}).String()
 	}
 	return result
 }

@@ -133,7 +133,7 @@ func (s *Server) getCommunicationRoutes() []Route {
 
 // AMFStatusChangeSubscribeModify - Namf_Communication AMF Status Change Subscribe Modify service Operation
 func (s *Server) HTTPAMFStatusChangeSubscribeModify(c *gin.Context) {
-	var subscriptionData models.AmfCommunicationSubscriptionData
+	var subscriptionData models.Amf_Comm_SubscriptionData
 
 	requestBody, err := c.GetRawData()
 	if err != nil {
@@ -171,8 +171,8 @@ func (s *Server) HTTPAMFStatusChangeUnSubscribe(c *gin.Context) {
 }
 
 func (s *Server) HTTPCreateUEContext(c *gin.Context) {
-	var createUeContextRequest models.CreateUeContextRequest
-	createUeContextRequest.JsonData = new(models.UeContextCreateData)
+	var createUeContextRequest models.CreateUEContextRequestBody
+	createUeContextRequest.JsonData = new(models.Amf_Comm_UeContextCreateData)
 
 	requestBody, err := c.GetRawData()
 	if err != nil {
@@ -216,7 +216,7 @@ func (s *Server) HTTPCreateUEContext(c *gin.Context) {
 
 // EBIAssignment - Namf_Communication EBI Assignment service Operation
 func (s *Server) HTTPEBIAssignment(c *gin.Context) {
-	var assignEbiData models.AssignEbiData
+	var assignEbiData models.Amf_Comm_AssignEbiData
 
 	requestBody, err := c.GetRawData()
 	if err != nil {
@@ -250,7 +250,7 @@ func (s *Server) HTTPEBIAssignment(c *gin.Context) {
 
 // RegistrationStatusUpdate - Namf_Communication RegistrationStatusUpdate service Operation
 func (s *Server) HTTPRegistrationStatusUpdate(c *gin.Context) {
-	var ueRegStatusUpdateReqData models.UeRegStatusUpdateReqData
+	var ueRegStatusUpdateReqData models.Amf_Comm_UeRegStatusUpdateReqData
 
 	requestBody, err := c.GetRawData()
 	if err != nil {
@@ -284,7 +284,7 @@ func (s *Server) HTTPRegistrationStatusUpdate(c *gin.Context) {
 
 // ReleaseUEContext - Namf_Communication ReleaseUEContext service Operation
 func (s *Server) HTTPReleaseUEContext(c *gin.Context) {
-	var ueContextRelease models.UeContextRelease
+	var ueContextRelease models.Amf_Comm_UEContextRelease
 
 	requestBody, err := c.GetRawData()
 	if err != nil {
@@ -318,8 +318,8 @@ func (s *Server) HTTPReleaseUEContext(c *gin.Context) {
 
 // UEContextTransfer - Namf_Communication UEContextTransfer service Operation
 func (s *Server) HTTPUEContextTransfer(c *gin.Context) {
-	var ueContextTransferRequest models.UeContextTransferRequest
-	ueContextTransferRequest.JsonData = new(models.UeContextTransferReqData)
+	var ueContextTransferRequest models.UEContextTransferRequestBody
+	ueContextTransferRequest.JsonData = new(models.Amf_Comm_UeContextTransferReqData)
 
 	requestBody, err := c.GetRawData()
 	if err != nil {
@@ -372,8 +372,8 @@ func (s *Server) HTTPN1N2MessageUnSubscribe(c *gin.Context) {
 }
 
 func (s *Server) HTTPN1N2MessageTransfer(c *gin.Context) {
-	var n1n2MessageTransferRequest models.N1N2MessageTransferRequest
-	n1n2MessageTransferRequest.JsonData = new(models.N1N2MessageTransferReqData)
+	var n1n2MessageTransferRequest models.N1N2MessageTransferRequestBody
+	n1n2MessageTransferRequest.JsonData = new(models.Amf_Comm_N1N2MessageTransferReqData)
 
 	requestBody, err := c.GetRawData()
 	if err != nil {
@@ -420,7 +420,7 @@ func (s *Server) HTTPN1N2MessageTransferStatus(c *gin.Context) {
 }
 
 func (s *Server) HTTPN1N2MessageSubscribe(c *gin.Context) {
-	var ueN1N2InfoSubscriptionCreateData models.UeN1N2InfoSubscriptionCreateData
+	var ueN1N2InfoSubscriptionCreateData models.Amf_Comm_UeN1N2InfoSubscriptionCreateData
 
 	requestBody, err := c.GetRawData()
 	if err != nil {
@@ -468,7 +468,7 @@ func (s *Server) HTTPNonUeN2InfoSubscribe(c *gin.Context) {
 }
 
 func (s *Server) HTTPAMFStatusChangeSubscribe(c *gin.Context) {
-	var subscriptionData models.AmfCommunicationSubscriptionData
+	var subscriptionData models.Amf_Comm_SubscriptionData
 
 	requestBody, err := c.GetRawData()
 	if err != nil {

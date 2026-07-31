@@ -1,15 +1,17 @@
 package context
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/free5gc/amf/internal/logger"
-	"github.com/free5gc/ngap/ngapConvert"
-	"github.com/free5gc/ngap/ngapType"
+	"github.com/free5gc/ngap/aper"
+	"github.com/free5gc/ngap/ie"
 	"github.com/free5gc/openapi/models"
 )
 
@@ -110,16 +112,112 @@ func (ran *AmfRan) FindRanUeByAmfUeNgapID(amfUeNgapID int64) *RanUe {
 	return ru
 }
 
-func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) {
-	ranId := ngapConvert.RanIdToModels(*ranNodeId)
-	ran.RanPresent = ranNodeId.Present
-	ran.RanId = &ranId
-	if ranNodeId.Present == ngapType.GlobalRANNodeIDPresentGlobalN3IWFID ||
-		ranNodeId.Present == ngapType.GlobalRANNodeIDPresentChoiceExtensions {
-		ran.AnType = models.AccessType_NON_3_GPP_ACCESS
-	} else {
-		ran.AnType = models.AccessType__3_GPP_ACCESS
+func (ran *AmfRan) SetRanId(ranNodeID *ie.GlobalRANNodeID) {
+	if ranNodeID == nil {
+		ran.Log.Warn("GlobalRANNodeID is nil")
+		return
 	}
+
+	var ranID models.GlobalRanNodeId
+	switch node := ranNodeID.Choice.(type) {
+	case *ie.GlobalGNBID:
+		ran.RanPresent = RanPresentGNbId
+		ran.AnType = models.AccessType_3_GPP_ACCESS
+		ranID.PlmnId = plmnIdentityToModels(node.PLMNIdentity)
+		if node.GNBID != nil {
+			if gnbID, ok := node.GNBID.Choice.(*ie.GNBIDForGNBID); ok {
+				ranID.GNbId = &models.GNbId{
+					BitLength: int32(gnbID.Value.BitLength),
+					GNBValue:  bitStringToHex(gnbID.Value),
+				}
+			}
+		}
+	case *ie.GlobalNgENBID:
+		ran.RanPresent = RanPresentNgeNbId
+		ran.AnType = models.AccessType_3_GPP_ACCESS
+		ranID.PlmnId = plmnIdentityToModels(node.PLMNIdentity)
+		if node.NgENBID != nil {
+			switch enbID := node.NgENBID.Choice.(type) {
+			case *ie.MacroNgENBIDForNgENBID:
+				ranID.NgeNbId = "MacroNGeNB-" + bitStringToHex(enbID.Value)
+			case *ie.ShortMacroNgENBIDForNgENBID:
+				ranID.NgeNbId = "SMacroNGeNB-" + bitStringToHex(enbID.Value)
+			case *ie.LongMacroNgENBIDForNgENBID:
+				ranID.NgeNbId = "LMacroNGeNB-" + bitStringToHex(enbID.Value)
+			}
+		}
+	case *ie.GlobalN3IWFID:
+		ran.RanPresent = RanPresentN3IwfId
+		ran.AnType = models.AccessType_NON_3_GPP_ACCESS
+		ranID.PlmnId = plmnIdentityToModels(node.PLMNIdentity)
+		if node.N3IWFID != nil {
+			if n3iwfID, ok := node.N3IWFID.Choice.(*ie.N3IWFIDForN3IWFID); ok {
+				ranID.N3IwfId = bitStringToHex(n3iwfID.Value)
+			}
+		}
+	case *ie.ProtocolIESingleContainerGlobalRANNodeIDExtIEs:
+		ran.AnType = models.AccessType_NON_3_GPP_ACCESS
+		ext := node.GlobalRANNodeIDExtIEs
+		switch {
+		case ext.GlobalTNGFID != nil:
+			ran.RanPresent = RanPresentTngfId
+			ranID.PlmnId = plmnIdentityToModels(ext.GlobalTNGFID.PLMNIdentity)
+			if ext.GlobalTNGFID.TNGFID != nil {
+				if id, ok := ext.GlobalTNGFID.TNGFID.Choice.(*ie.TNGFIDForTNGFID); ok {
+					ranID.TngfId = bitStringToHex(id.Value)
+				}
+			}
+		case ext.GlobalTWIFID != nil:
+			ran.RanPresent = RanPresentTwifId
+			ranID.PlmnId = plmnIdentityToModels(ext.GlobalTWIFID.PLMNIdentity)
+			if ext.GlobalTWIFID.TWIFID != nil {
+				if id, ok := ext.GlobalTWIFID.TWIFID.Choice.(*ie.TWIFIDForTWIFID); ok {
+					ranID.TwifId = bitStringToHex(id.Value)
+				}
+			}
+		case ext.GlobalWAGFID != nil:
+			ran.RanPresent = RanPresentWagfId
+			ranID.PlmnId = plmnIdentityToModels(ext.GlobalWAGFID.PLMNIdentity)
+			if ext.GlobalWAGFID.WAGFID != nil {
+				if id, ok := ext.GlobalWAGFID.WAGFID.Choice.(*ie.WAGFIDForWAGFID); ok {
+					ranID.WagfId = bitStringToHex(id.Value)
+				}
+			}
+		default:
+			ran.Log.Warn("Unsupported GlobalRANNodeID extension")
+			return
+		}
+	default:
+		ran.Log.Warnf("Unsupported GlobalRANNodeID choice %T", ranNodeID.Choice)
+		return
+	}
+
+	ran.RanId = &ranID
+}
+
+func plmnIdentityToModels(plmnIdentity *ie.PLMNIdentity) *models.PlmnId {
+	if plmnIdentity == nil || len(plmnIdentity.Value) != 3 {
+		return nil
+	}
+	digits := strings.Split(hex.EncodeToString(plmnIdentity.Value), "")
+	plmnID := &models.PlmnId{
+		Mcc: digits[1] + digits[0] + digits[3],
+	}
+	if digits[2] == "f" {
+		plmnID.Mnc = digits[5] + digits[4]
+	} else {
+		plmnID.Mnc = digits[2] + digits[5] + digits[4]
+	}
+	return plmnID
+}
+
+func bitStringToHex(bitString aper.BitString) string {
+	hexString := hex.EncodeToString(bitString.Bytes)
+	hexLength := (bitString.BitLength + 3) / 4
+	if int(hexLength) > len(hexString) {
+		return ""
+	}
+	return hexString[:hexLength]
 }
 
 func (ran *AmfRan) RanID() string {

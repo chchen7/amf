@@ -5,137 +5,161 @@ import (
 
 	"github.com/free5gc/amf/internal/context"
 	"github.com/free5gc/amf/internal/logger"
+	ngapConvert "github.com/free5gc/amf/internal/ngap/convert"
 	"github.com/free5gc/amf/internal/util"
-	"github.com/free5gc/ngap/ngapConvert"
-	"github.com/free5gc/ngap/ngapType"
+	ngapAper "github.com/free5gc/ngap/aper"
+	ngapIE "github.com/free5gc/ngap/ie"
 	"github.com/free5gc/openapi/models"
 )
 
-func AppendPDUSessionResourceSetupListSUReq(list *ngapType.PDUSessionResourceSetupListSUReq,
+func AppendPDUSessionResourceSetupListSUReq(list *ngapIE.PDUSessionResourceSetupListSUReq,
 	pduSessionId int32, snssai models.Snssai, nasPDU []byte, transfer []byte,
 ) {
-	var item ngapType.PDUSessionResourceSetupItemSUReq
-	item.PDUSessionID.Value = int64(pduSessionId)
-	item.SNSSAI = ngapConvert.SNssaiToNgap(snssai)
-	item.PDUSessionResourceSetupRequestTransfer = transfer
+	ngapSnssai := ngapConvert.SNssaiToNgap(snssai)
+	transferValue := ngapAper.OctetString(transfer)
+	item := ngapIE.PDUSessionResourceSetupItemSUReq{
+		PDUSessionID:                           &ngapIE.PDUSessionID{Value: int64(pduSessionId)},
+		SNSSAI:                                 &ngapSnssai,
+		PDUSessionResourceSetupRequestTransfer: &transferValue,
+	}
 	if nasPDU != nil {
-		item.PDUSessionNASPDU = new(ngapType.NASPDU)
-		item.PDUSessionNASPDU.Value = nasPDU
+		item.PDUSessionNASPDU = &ngapIE.NASPDU{Value: nasPDU}
 	}
 	list.List = append(list.List, item)
 }
 
-func AppendPDUSessionResourceSetupListHOReq(list *ngapType.PDUSessionResourceSetupListHOReq,
+func AppendPDUSessionResourceSetupListHOReq(list *ngapIE.PDUSessionResourceSetupListHOReq,
 	pduSessionId int32, snssai models.Snssai, transfer []byte,
 ) {
-	var item ngapType.PDUSessionResourceSetupItemHOReq
-	item.PDUSessionID.Value = int64(pduSessionId)
-	item.SNSSAI = ngapConvert.SNssaiToNgap(snssai)
-	item.HandoverRequestTransfer = transfer
+	ngapSnssai := ngapConvert.SNssaiToNgap(snssai)
+	transferValue := ngapAper.OctetString(transfer)
+	item := ngapIE.PDUSessionResourceSetupItemHOReq{
+		PDUSessionID:            &ngapIE.PDUSessionID{Value: int64(pduSessionId)},
+		SNSSAI:                  &ngapSnssai,
+		HandoverRequestTransfer: &transferValue,
+	}
 	list.List = append(list.List, item)
 }
 
-func AppendPDUSessionResourceSetupListCxtReq(list *ngapType.PDUSessionResourceSetupListCxtReq,
+func AppendPDUSessionResourceSetupListCxtReq(list *ngapIE.PDUSessionResourceSetupListCxtReq,
 	pduSessionId int32, snssai models.Snssai, nasPDU []byte, transfer []byte,
 ) {
-	var item ngapType.PDUSessionResourceSetupItemCxtReq
-	item.PDUSessionID.Value = int64(pduSessionId)
-	item.SNSSAI = ngapConvert.SNssaiToNgap(snssai)
-	if nasPDU != nil {
-		item.NASPDU = new(ngapType.NASPDU)
-		item.NASPDU.Value = nasPDU
+	ngapSnssai := ngapConvert.SNssaiToNgap(snssai)
+	transferValue := ngapAper.OctetString(transfer)
+	item := ngapIE.PDUSessionResourceSetupItemCxtReq{
+		PDUSessionID:                           &ngapIE.PDUSessionID{Value: int64(pduSessionId)},
+		SNSSAI:                                 &ngapSnssai,
+		PDUSessionResourceSetupRequestTransfer: &transferValue,
 	}
-	item.PDUSessionResourceSetupRequestTransfer = transfer
+	if nasPDU != nil {
+		item.NASPDU = &ngapIE.NASPDU{Value: nasPDU}
+	}
 	list.List = append(list.List, item)
 }
 
 func ConvertPDUSessionResourceSetupListCxtReqToSUReq(
-	listCxtReq *ngapType.PDUSessionResourceSetupListCxtReq,
-) *ngapType.PDUSessionResourceSetupListSUReq {
+	listCxtReq *ngapIE.PDUSessionResourceSetupListCxtReq,
+) *ngapIE.PDUSessionResourceSetupListSUReq {
 	if listCxtReq == nil {
 		return nil
 	}
-	listSUReq := ngapType.PDUSessionResourceSetupListSUReq{}
+	listSUReq := ngapIE.PDUSessionResourceSetupListSUReq{}
 	for _, itemCxt := range listCxtReq.List {
-		var itemSU ngapType.PDUSessionResourceSetupItemSUReq
-		itemSU.PDUSessionID = itemCxt.PDUSessionID
-		itemSU.PDUSessionNASPDU = itemCxt.NASPDU
-		itemSU.SNSSAI = itemCxt.SNSSAI
-		itemSU.PDUSessionResourceSetupRequestTransfer = itemCxt.PDUSessionResourceSetupRequestTransfer
+		itemSU := ngapIE.PDUSessionResourceSetupItemSUReq{
+			PDUSessionID:                           itemCxt.PDUSessionID,
+			PDUSessionNASPDU:                       itemCxt.NASPDU,
+			SNSSAI:                                 itemCxt.SNSSAI,
+			PDUSessionResourceSetupRequestTransfer: itemCxt.PDUSessionResourceSetupRequestTransfer,
+		}
 		listSUReq.List = append(listSUReq.List, itemSU)
 	}
 	return &listSUReq
 }
 
-func AppendPDUSessionResourceModifyListModReq(list *ngapType.PDUSessionResourceModifyListModReq,
+func AppendPDUSessionResourceModifyListModReq(list *ngapIE.PDUSessionResourceModifyListModReq,
 	pduSessionId int32, nasPDU []byte, transfer []byte,
 ) {
-	var item ngapType.PDUSessionResourceModifyItemModReq
-	item.PDUSessionID.Value = int64(pduSessionId)
-	item.PDUSessionResourceModifyRequestTransfer = transfer
+	transferValue := ngapAper.OctetString(transfer)
+	item := ngapIE.PDUSessionResourceModifyItemModReq{
+		PDUSessionID:                            &ngapIE.PDUSessionID{Value: int64(pduSessionId)},
+		PDUSessionResourceModifyRequestTransfer: &transferValue,
+	}
 	if nasPDU != nil {
-		item.NASPDU = new(ngapType.NASPDU)
-		item.NASPDU.Value = nasPDU
+		item.NASPDU = &ngapIE.NASPDU{Value: nasPDU}
 	}
 	list.List = append(list.List, item)
 }
 
-func AppendPDUSessionResourceModifyListModCfm(list *ngapType.PDUSessionResourceModifyListModCfm,
+func AppendPDUSessionResourceModifyListModCfm(list *ngapIE.PDUSessionResourceModifyListModCfm,
 	pduSessionId int64, transfer []byte,
 ) {
-	var item ngapType.PDUSessionResourceModifyItemModCfm
-	item.PDUSessionID.Value = pduSessionId
-	item.PDUSessionResourceModifyConfirmTransfer = transfer
+	transferValue := ngapAper.OctetString(transfer)
+	item := ngapIE.PDUSessionResourceModifyItemModCfm{
+		PDUSessionID:                            &ngapIE.PDUSessionID{Value: pduSessionId},
+		PDUSessionResourceModifyConfirmTransfer: &transferValue,
+	}
 	list.List = append(list.List, item)
 }
 
-func AppendPDUSessionResourceFailedToModifyListModCfm(list *ngapType.PDUSessionResourceFailedToModifyListModCfm,
+func AppendPDUSessionResourceFailedToModifyListModCfm(list *ngapIE.PDUSessionResourceFailedToModifyListModCfm,
 	pduSessionId int64, transfer []byte,
 ) {
-	var item ngapType.PDUSessionResourceFailedToModifyItemModCfm
-	item.PDUSessionID.Value = pduSessionId
-	item.PDUSessionResourceModifyIndicationUnsuccessfulTransfer = transfer
+	transferValue := ngapAper.OctetString(transfer)
+	item := ngapIE.PDUSessionResourceFailedToModifyItemModCfm{
+		PDUSessionID: &ngapIE.PDUSessionID{Value: pduSessionId},
+		PDUSessionResourceModifyIndicationUnsuccessfulTransfer: &transferValue,
+	}
 	list.List = append(list.List, item)
 }
 
-func AppendPDUSessionResourceToReleaseListRelCmd(list *ngapType.PDUSessionResourceToReleaseListRelCmd,
+func AppendPDUSessionResourceToReleaseListRelCmd(list *ngapIE.PDUSessionResourceToReleaseListRelCmd,
 	pduSessionId int32, transfer []byte,
 ) {
-	var item ngapType.PDUSessionResourceToReleaseItemRelCmd
-	item.PDUSessionID.Value = int64(pduSessionId)
-	item.PDUSessionResourceReleaseCommandTransfer = transfer
+	if list == nil {
+		return
+	}
+	transferValue := ngapAper.OctetString(transfer)
+	item := ngapIE.PDUSessionResourceToReleaseItemRelCmd{
+		PDUSessionID:                             &ngapIE.PDUSessionID{Value: int64(pduSessionId)},
+		PDUSessionResourceReleaseCommandTransfer: &transferValue,
+	}
 	list.List = append(list.List, item)
 }
 
-func BuildIEMobilityRestrictionList(ue *context.AmfUe) ngapType.MobilityRestrictionList {
-	mobilityRestrictionList := ngapType.MobilityRestrictionList{}
-	mobilityRestrictionList.ServingPLMN = ngapConvert.PlmnIdToNgap(ue.PlmnId)
+func BuildIEMobilityRestrictionList(ue *context.AmfUe) ngapIE.MobilityRestrictionList {
+	servingPLMN := ngapConvert.PlmnIdToNgap(ue.PlmnId)
+	mobilityRestrictionList := ngapIE.MobilityRestrictionList{ServingPLMN: &servingPLMN}
 
 	if ue.AccessAndMobilitySubscriptionData != nil && len(ue.AccessAndMobilitySubscriptionData.RatRestrictions) > 0 {
-		mobilityRestrictionList.RATRestrictions = new(ngapType.RATRestrictions)
+		mobilityRestrictionList.RATRestrictions = new(ngapIE.RATRestrictions)
 		ratRestrictions := mobilityRestrictionList.RATRestrictions
 		for _, ratType := range ue.AccessAndMobilitySubscriptionData.RatRestrictions {
-			item := ngapType.RATRestrictionsItem{}
-			item.PLMNIdentity = ngapConvert.PlmnIdToNgap(ue.PlmnId)
-			item.RATRestrictionInformation = ngapConvert.RATRestrictionInformationToNgap(ratType)
+			plmn := ngapConvert.PlmnIdToNgap(ue.PlmnId)
+			restriction := ngapConvert.RATRestrictionInformationToNgap(ratType)
+			item := ngapIE.RATRestrictionsItem{
+				PLMNIdentity:              &plmn,
+				RATRestrictionInformation: &restriction,
+			}
 			ratRestrictions.List = append(ratRestrictions.List, item)
 		}
 	}
 
 	if ue.AccessAndMobilitySubscriptionData != nil && len(ue.AccessAndMobilitySubscriptionData.ForbiddenAreas) > 0 {
-		mobilityRestrictionList.ForbiddenAreaInformation = new(ngapType.ForbiddenAreaInformation)
+		mobilityRestrictionList.ForbiddenAreaInformation = new(ngapIE.ForbiddenAreaInformation)
 		forbiddenAreaInformation := mobilityRestrictionList.ForbiddenAreaInformation
 		for _, info := range ue.AccessAndMobilitySubscriptionData.ForbiddenAreas {
-			item := ngapType.ForbiddenAreaInformationItem{}
-			item.PLMNIdentity = ngapConvert.PlmnIdToNgap(ue.PlmnId)
+			plmn := ngapConvert.PlmnIdToNgap(ue.PlmnId)
+			item := ngapIE.ForbiddenAreaInformationItem{
+				PLMNIdentity:  &plmn,
+				ForbiddenTACs: &ngapIE.ForbiddenTACs{},
+			}
 			for _, tac := range info.Tacs {
 				tacBytes, err := hex.DecodeString(tac)
 				if err != nil {
 					logger.NgapLog.Errorf(
 						"[Error] DecodeString tac error: %+v", err)
 				}
-				tacNgap := ngapType.TAC{}
-				tacNgap.Value = tacBytes
+				tacNgap := ngapIE.TAC{Value: tacBytes}
 				item.ForbiddenTACs.List = append(item.ForbiddenTACs.List, tacNgap)
 			}
 			forbiddenAreaInformation.List = append(forbiddenAreaInformation.List, item)
@@ -143,12 +167,12 @@ func BuildIEMobilityRestrictionList(ue *context.AmfUe) ngapType.MobilityRestrict
 	}
 
 	if ue.AmPolicyAssociation != nil && ue.AmPolicyAssociation.ServAreaRes != nil {
-		mobilityRestrictionList.ServiceAreaInformation = new(ngapType.ServiceAreaInformation)
+		mobilityRestrictionList.ServiceAreaInformation = new(ngapIE.ServiceAreaInformation)
 		serviceAreaInformation := mobilityRestrictionList.ServiceAreaInformation
 
-		item := ngapType.ServiceAreaInformationItem{}
-		item.PLMNIdentity = ngapConvert.PlmnIdToNgap(ue.PlmnId)
-		var tacList []ngapType.TAC
+		plmn := ngapConvert.PlmnIdToNgap(ue.PlmnId)
+		item := ngapIE.ServiceAreaInformationItem{PLMNIdentity: &plmn}
+		var tacList []ngapIE.TAC
 		for _, area := range ue.AmPolicyAssociation.ServAreaRes.Areas {
 			for _, tac := range area.Tacs {
 				tacBytes, err := hex.DecodeString(tac)
@@ -156,16 +180,15 @@ func BuildIEMobilityRestrictionList(ue *context.AmfUe) ngapType.MobilityRestrict
 					logger.NgapLog.Errorf(
 						"[Error] DecodeString tac error: %+v", err)
 				}
-				tacNgap := ngapType.TAC{}
-				tacNgap.Value = tacBytes
+				tacNgap := ngapIE.TAC{Value: tacBytes}
 				tacList = append(tacList, tacNgap)
 			}
 		}
 		if ue.AmPolicyAssociation.ServAreaRes.RestrictionType == models.RestrictionType_ALLOWED_AREAS {
-			item.AllowedTACs = new(ngapType.AllowedTACs)
+			item.AllowedTACs = new(ngapIE.AllowedTACs)
 			item.AllowedTACs.List = append(item.AllowedTACs.List, tacList...)
 		} else {
-			item.NotAllowedTACs = new(ngapType.NotAllowedTACs)
+			item.NotAllowedTACs = new(ngapIE.NotAllowedTACs)
 			item.NotAllowedTACs.List = append(item.NotAllowedTACs.List, tacList...)
 		}
 		serviceAreaInformation.List = append(serviceAreaInformation.List, item)
@@ -173,14 +196,18 @@ func BuildIEMobilityRestrictionList(ue *context.AmfUe) ngapType.MobilityRestrict
 	return mobilityRestrictionList
 }
 
-func BuildUnavailableGUAMIList(guamiList []models.Guami) (unavailableGUAMIList ngapType.UnavailableGUAMIList) {
+func BuildUnavailableGUAMIList(guamiList []models.Guami) (unavailableGUAMIList ngapIE.UnavailableGUAMIList) {
 	for _, guami := range guamiList {
-		item := ngapType.UnavailableGUAMIItem{}
-		item.GUAMI.PLMNIdentity = ngapConvert.PlmnIdToNgap(util.PlmnIdNidToModelsPlmnId(*guami.PlmnId))
+		plmn := ngapConvert.PlmnIdToNgap(util.PlmnIdNidToModelsPlmnId(*guami.PlmnId))
 		regionId, setId, ptrId := ngapConvert.AmfIdToNgap(guami.AmfId)
-		item.GUAMI.AMFRegionID.Value = regionId
-		item.GUAMI.AMFSetID.Value = setId
-		item.GUAMI.AMFPointer.Value = ptrId
+		item := ngapIE.UnavailableGUAMIItem{
+			GUAMI: &ngapIE.GUAMI{
+				PLMNIdentity: &plmn,
+				AMFRegionID:  &ngapIE.AMFRegionID{Value: regionId},
+				AMFSetID:     &ngapIE.AMFSetID{Value: setId},
+				AMFPointer:   &ngapIE.AMFPointer{Value: ptrId},
+			},
+		}
 		// TODO: item.TimerApproachForGUAMIRemoval and item.BackupAMFName not support yet
 		unavailableGUAMIList.List = append(unavailableGUAMIList.List, item)
 	}

@@ -52,7 +52,7 @@ func (s *Server) getLocationRoutes() []Route {
 
 // ProvideLocationInfo - Namf_Location ProvideLocationInfo service Operation
 func (s *Server) HTTPProvideLocationInfo(c *gin.Context) {
-	var requestLocInfo models.RequestLocInfo
+	var requestLocInfo models.Amf_Loc_RequestLocInfo
 
 	requestBody, err := c.GetRawData()
 	if err != nil {

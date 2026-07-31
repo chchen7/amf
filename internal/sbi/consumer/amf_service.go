@@ -6,9 +6,10 @@ import (
 
 	amf_context "github.com/free5gc/amf/internal/context"
 	"github.com/free5gc/amf/internal/logger"
-	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/nas/ie"
 	"github.com/free5gc/openapi"
-	Namf_Communication "github.com/free5gc/openapi/amf/Communication"
+	Namf_Communication "github.com/free5gc/openapi/amf/Comm"
+	"github.com/free5gc/openapi/mediatype/multipart"
 	"github.com/free5gc/openapi/models"
 	sbi_metrics "github.com/free5gc/util/metrics/sbi"
 )
@@ -44,11 +45,11 @@ func (s *namfService) getComClient(uri string) *Namf_Communication.APIClient {
 	return client
 }
 
-func (s *namfService) BuildUeContextCreateData(ue *amf_context.AmfUe, targetRanId models.NgRanTargetId,
-	sourceToTargetData models.N2InfoContent, pduSessionList []models.N2SmInformation,
+func (s *namfService) BuildUeContextCreateData(ue *amf_context.AmfUe, targetRanId models.Amf_Comm_NgRanTargetId,
+	sourceToTargetData models.Amf_Comm_N2InfoContent, pduSessionList []models.Amf_Comm_N2SmInformation,
 	n2NotifyUri string, ngapCause *models.NgApCause,
-) models.UeContextCreateData {
-	var ueContextCreateData models.UeContextCreateData
+) models.Amf_Comm_UeContextCreateData {
+	var ueContextCreateData models.Amf_Comm_UeContextCreateData
 
 	ueContext := s.BuildUeContextModel(ue)
 	ueContextCreateData.UeContext = &ueContext
@@ -58,7 +59,7 @@ func (s *namfService) BuildUeContextCreateData(ue *amf_context.AmfUe, targetRanI
 	ueContextCreateData.N2NotifyUri = n2NotifyUri
 
 	if ue.UeRadioCapability != "" {
-		ueContextCreateData.UeRadioCapability = &models.N2InfoContent{
+		ueContextCreateData.UeRadioCapability = &models.Amf_Comm_N2InfoContent{
 			NgapData: &models.RefToBinaryData{
 				ContentId: ue.UeRadioCapability,
 			},
@@ -68,7 +69,7 @@ func (s *namfService) BuildUeContextCreateData(ue *amf_context.AmfUe, targetRanI
 	return ueContextCreateData
 }
 
-func (s *namfService) BuildUeContextModel(ue *amf_context.AmfUe) (ueContext models.UeContext) {
+func (s *namfService) BuildUeContextModel(ue *amf_context.AmfUe) (ueContext models.Amf_Comm_UeContext) {
 	ueContext.Supi = ue.Supi
 	ueContext.SupiUnauthInd = ue.UnauthenticatedSupi
 
@@ -131,56 +132,70 @@ func (s *namfService) BuildUeContextModel(ue *amf_context.AmfUe) (ueContext mode
 }
 
 func (s *namfService) buildAmPolicyReqTriggers(
-	triggers []models.PcfAmPolicyControlRequestTrigger,
-) (amPolicyReqTriggers []models.PolicyReqTrigger) {
+	triggers []models.Pcf_AMPolCtrl_RequestTrigger,
+) (amPolicyReqTriggers []models.Amf_Comm_PolicyReqTrigger) {
 	for _, trigger := range triggers {
 		switch trigger {
-		case models.PcfAmPolicyControlRequestTrigger_LOC_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.PolicyReqTrigger_LOCATION_CHANGE)
-		case models.PcfAmPolicyControlRequestTrigger_PRA_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.PolicyReqTrigger_PRA_CHANGE)
-		case models.PcfAmPolicyControlRequestTrigger_ALLOWED_NSSAI_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.PolicyReqTrigger_ALLOWED_NSSAI_CHANGE)
-		case models.PcfAmPolicyControlRequestTrigger_NWDAF_DATA_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.PolicyReqTrigger_NWDAF_DATA_CHANGE)
-		case models.PcfAmPolicyControlRequestTrigger_SMF_SELECT_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.PolicyReqTrigger_SMF_SELECT_CHANGE)
-		case models.PcfAmPolicyControlRequestTrigger_ACCESS_TYPE_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.PolicyReqTrigger_ACCESS_TYPE_CHANGE)
+		case models.Pcf_AMPolCtrl_RequestTrigger_LOC_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.Amf_Comm_PolicyReqTrigger_LOCATION_CHANGE)
+		case models.Pcf_AMPolCtrl_RequestTrigger_PRA_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.Amf_Comm_PolicyReqTrigger_PRA_CHANGE)
+		case models.Pcf_AMPolCtrl_RequestTrigger_ALLOWED_NSSAI_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.Amf_Comm_PolicyReqTrigger_ALLOWED_NSSAI_CHANGE)
+		case models.Pcf_AMPolCtrl_RequestTrigger_NWDAF_DATA_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.Amf_Comm_PolicyReqTrigger_NWDAF_DATA_CHANGE)
+		case models.Pcf_AMPolCtrl_RequestTrigger_SMF_SELECT_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.Amf_Comm_PolicyReqTrigger_SMF_SELECT_CHANGE)
+		case models.Pcf_AMPolCtrl_RequestTrigger_ACCESS_TYPE_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.Amf_Comm_PolicyReqTrigger_ACCESS_TYPE_CHANGE)
 		}
 	}
 	return
 }
 
-func (s *namfService) CreateUEContextRequest(ue *amf_context.AmfUe, ueContextCreateData models.UeContextCreateData) (
-	ueContextCreatedData *models.UeContextCreatedData, problemDetails *models.ProblemDetails, err error,
+func (s *namfService) CreateUEContextRequest(ue *amf_context.AmfUe, ueContextCreateData models.Amf_Comm_UeContextCreateData) (
+	ueContextCreatedData *models.Amf_Comm_UeContextCreatedData, problemDetails *models.ProblemDetails, err error,
 ) {
 	client := s.getComClient(ue.TargetAmfUri)
 	if client == nil {
 		return nil, nil, openapi.ReportError("amf not found")
 	}
 
-	req := models.CreateUeContextRequest{
+	req := models.CreateUEContextRequestBody{
 		JsonData: &ueContextCreateData,
 	}
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NAMF_COMM, models.NrfNfManagementNfType_AMF)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NAMF_COMM, models.Nrf_NFMgmt_NFType_AMF)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	creatuectxreq := Namf_Communication.CreateUEContextRequest{
-		UeContextId:            &ue.Supi,
-		CreateUeContextRequest: &req,
+		UeContextId: &ue.Supi,
+		RequestBody: &req,
 	}
 
 	res, localErr := client.IndividualUeContextDocumentApi.CreateUEContext(ctx, &creatuectxreq)
 	if localErr == nil {
-		ueContextCreatedData = res.CreateUeContextResponse201.JsonData
+		if res == nil || res.CreateUEContextResponse201 == nil {
+			return nil, openapi.ProblemDetailsSystemFailure(
+				"invalid UE context create response: missing response data",
+			), nil
+		}
+		ueContextCreatedData = res.CreateUEContextResponse201.JsonData
+		if ueContextCreatedData == nil {
+			return nil, openapi.ProblemDetailsSystemFailure(
+				"invalid UE context create response: missing JSON data",
+			), nil
+		}
 		logger.ConsumerLog.Debugf("UeContextCreatedData: %+v", *ueContextCreatedData)
 	} else {
 		if apiErr, ok := localErr.(openapi.GenericOpenAPIError); ok {
-			creatErr := apiErr.Model().(*Namf_Communication.CreateUEContextError)
-			return nil, &creatErr.ProblemDetails, nil
+			switch createErr := apiErr.Model().(type) {
+			case Namf_Communication.CreateUEContextError:
+				return nil, createErr.ProblemDetails, nil
+			case *Namf_Communication.CreateUEContextError:
+				return nil, createErr.ProblemDetails, nil
+			}
 		}
 		return nil, nil, localErr
 	}
@@ -202,21 +217,21 @@ func (s *namfService) ReleaseUEContextRequest(ue *amf_context.AmfUe, ngapCause m
 		ueContextId = ue.Pei
 	}
 
-	ueContextRelease := models.UeContextRelease{
+	ueContextRelease := models.Amf_Comm_UEContextRelease{
 		NgapCause: &ngapCause,
 	}
-	if ue.RegistrationType5GS == nasMessage.RegistrationType5GSEmergencyRegistration && ue.UnauthenticatedSupi {
+	if ue.RegistrationType5GS == ie.RegType_EmergReg && ue.UnauthenticatedSupi {
 		ueContextRelease.Supi = ue.Supi
 		ueContextRelease.UnauthenticatedSupi = true
 	}
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NAMF_COMM, models.NrfNfManagementNfType_AMF)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NAMF_COMM, models.Nrf_NFMgmt_NFType_AMF)
 	if err != nil {
 		return nil, err
 	}
 
 	ueCtxReleaseReq := Namf_Communication.ReleaseUEContextRequest{
-		UeContextId:      &ueContextId,
-		UeContextRelease: &ueContextRelease,
+		UeContextId: &ueContextId,
+		RequestBody: &ueContextRelease,
 	}
 
 	_, err = client.IndividualUeContextDocumentApi.ReleaseUEContext(
@@ -227,7 +242,7 @@ func (s *namfService) ReleaseUEContextRequest(ue *amf_context.AmfUe, ngapCause m
 		case openapi.GenericOpenAPIError:
 			switch errModel := apiErr.Model().(type) {
 			case Namf_Communication.ReleaseUEContextError:
-				return &errModel.ProblemDetails, nil
+				return errModel.ProblemDetails, nil
 			case error:
 				return openapi.ProblemDetailsSystemFailure(errModel.Error()), nil
 			default:
@@ -243,52 +258,56 @@ func (s *namfService) ReleaseUEContextRequest(ue *amf_context.AmfUe, ngapCause m
 }
 
 func (s *namfService) UEContextTransferRequest(
-	ue *amf_context.AmfUe, accessType models.AccessType, transferReason models.TransferReason) (
-	ueContextTransferRspData *models.UeContextTransferRspData, problemDetails *models.ProblemDetails, err error,
+	ue *amf_context.AmfUe, accessType models.AccessType, transferReason models.Amf_Comm_TransferReason) (
+	ueContextTransferRspData *models.Amf_Comm_UeContextTransferRspData, problemDetails *models.ProblemDetails, err error,
 ) {
 	client := s.getComClient(ue.TargetAmfUri)
 	if client == nil {
 		return nil, nil, openapi.ReportError("amf not found")
 	}
 
-	ueContextTransferReqData := models.UeContextTransferReqData{
+	ueContextTransferReqData := models.Amf_Comm_UeContextTransferReqData{
 		Reason:     transferReason,
 		AccessType: accessType,
 	}
 
-	req := models.UeContextTransferRequest{
+	req := models.UEContextTransferRequestBody{
 		JsonData: &ueContextTransferReqData,
 	}
-	if transferReason == models.TransferReason_INIT_REG || transferReason == models.TransferReason_MOBI_REG {
-		ueContextTransferReqData.RegRequest = &models.N1MessageContainer{
-			N1MessageClass: models.N1MessageClass__5_GMM,
+	if transferReason == models.Amf_Comm_TransferReason_INIT_REG || transferReason == models.Amf_Comm_TransferReason_MOBI_REG {
+		ueContextTransferReqData.RegRequest = &models.Amf_Comm_N1MessageContainer{
+			N1MessageClass: models.Amf_Comm_N1MessageClass_5_GMM,
 			N1MessageContent: &models.RefToBinaryData{
 				ContentId: "n1Msg",
 			},
 		}
-		req.BinaryDataN1Message = ue.NasPduValue
+		req.BinaryDataN1Message = &multipart.RelatedContent{
+			ContentID: "n1Msg",
+			Content:   ue.NasPduValue,
+		}
 	}
 
 	// guti format is defined at TS 29.518 Table 6.1.3.2.2-1 5g-guti-[0-9]{5,6}[0-9a-fA-F]{14}
 	ueContextId := fmt.Sprintf("5g-guti-%s", ue.Guti)
 
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NAMF_COMM, models.NrfNfManagementNfType_AMF)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NAMF_COMM, models.Nrf_NFMgmt_NFType_AMF)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	ueCtxTransferReq := Namf_Communication.UEContextTransferRequest{
-		UeContextId:              &ueContextId,
-		UeContextTransferRequest: &req,
+		UeContextId: &ueContextId,
+		RequestBody: &req,
 	}
 
 	res, localErr := client.IndividualUeContextDocumentApi.UEContextTransfer(ctx, &ueCtxTransferReq)
 	if localErr == nil {
-		if res == nil || res.UeContextTransferResponse200.JsonData == nil {
+		if res == nil || res.UEContextTransferResponse200 == nil ||
+			res.UEContextTransferResponse200.JsonData == nil {
 			problemDetails = openapi.ProblemDetailsSystemFailure("invalid UE context transfer response: missing response data")
 			return ueContextTransferRspData, problemDetails, err
 		}
-		ueContextTransferRspData = res.UeContextTransferResponse200.JsonData
+		ueContextTransferRspData = res.UEContextTransferResponse200.JsonData
 		if ueContextTransferRspData == nil {
 			logger.ConsumerLog.Warnln("UeContextTransfer 200 response missing JsonData")
 			problemDetails = openapi.ProblemDetailsSystemFailure("invalid UE context transfer response: missing response data")
@@ -306,7 +325,7 @@ func (s *namfService) UEContextTransferRequest(
 		case openapi.GenericOpenAPIError:
 			switch errModel := apiErr.Model().(type) {
 			case Namf_Communication.UEContextTransferError:
-				problemDetails = &errModel.ProblemDetails
+				problemDetails = errModel.ProblemDetails
 			case error:
 				problemDetails = openapi.ProblemDetailsSystemFailure(errModel.Error())
 			default:
@@ -321,7 +340,7 @@ func (s *namfService) UEContextTransferRequest(
 	return ueContextTransferRspData, problemDetails, err
 }
 
-func (s *namfService) RegistrationStatusUpdate(ue *amf_context.AmfUe, request models.UeRegStatusUpdateReqData) (
+func (s *namfService) RegistrationStatusUpdate(ue *amf_context.AmfUe, request models.Amf_Comm_UeRegStatusUpdateReqData) (
 	regStatusTransferComplete bool, problemDetails *models.ProblemDetails, err error,
 ) {
 	client := s.getComClient(ue.TargetAmfUri)
@@ -331,27 +350,27 @@ func (s *namfService) RegistrationStatusUpdate(ue *amf_context.AmfUe, request mo
 
 	ueContextId := fmt.Sprintf("5g-guti-%s", ue.Guti)
 
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NAMF_COMM, models.NrfNfManagementNfType_AMF)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NAMF_COMM, models.Nrf_NFMgmt_NFType_AMF)
 	if err != nil {
 		return regStatusTransferComplete, nil, err
 	}
 
 	regStatusUpdateReq := Namf_Communication.RegistrationStatusUpdateRequest{
-		UeContextId:              &ueContextId,
-		UeRegStatusUpdateReqData: &request,
+		UeContextId: &ueContextId,
+		RequestBody: &request,
 	}
 
 	res, localErr := client.IndividualUeContextDocumentApi.
 		RegistrationStatusUpdate(ctx, &regStatusUpdateReq)
 	if localErr == nil {
-		regStatusTransferComplete = res.UeRegStatusUpdateRspData.RegStatusTransferComplete
+		regStatusTransferComplete = res.Amf_Comm_UeRegStatusUpdateRspData.RegStatusTransferComplete
 	} else {
 		switch apiErr := localErr.(type) {
 		// API error
 		case openapi.GenericOpenAPIError:
 			switch errModel := apiErr.Model().(type) {
 			case Namf_Communication.RegistrationStatusUpdateError:
-				problemDetails = &errModel.ProblemDetails
+				problemDetails = errModel.ProblemDetails
 			case error:
 				problemDetails = openapi.ProblemDetailsSystemFailure(errModel.Error())
 			default:

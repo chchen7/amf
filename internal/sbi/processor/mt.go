@@ -30,7 +30,7 @@ func (p *Processor) HandleProvideDomainSelectionInfoRequest(c *gin.Context) {
 
 func (p *Processor) ProvideDomainSelectionInfoProcedure(ueContextID string, infoClassQuery string,
 	supportedFeaturesQuery string) (
-	*models.UeContextInfo, *models.ProblemDetails,
+	*models.Amf_MT_UeContextInfo, *models.ProblemDetails,
 ) {
 	amfSelf := context.GetSelf()
 
@@ -47,7 +47,7 @@ func (p *Processor) ProvideDomainSelectionInfoProcedure(ueContextID string, info
 	ue.Lock.Lock()
 	defer ue.Lock.Unlock()
 
-	ueContextInfo := new(models.UeContextInfo)
+	ueContextInfo := new(models.Amf_MT_UeContextInfo)
 
 	// TODO: Error Status 307, 403 in TS29.518 Table 6.3.3.3.3.1-3
 	anType := ue.GetAnType()

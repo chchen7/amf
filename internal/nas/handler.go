@@ -7,15 +7,15 @@ import (
 	gmm_common "github.com/free5gc/amf/internal/gmm/common"
 	"github.com/free5gc/amf/internal/logger"
 	"github.com/free5gc/amf/internal/nas/nas_security"
-	"github.com/free5gc/nas"
+	"github.com/free5gc/nas/ie"
+	"github.com/free5gc/nas/message"
 	nas_metrics "github.com/free5gc/util/metrics/nas"
 )
 
 func HandleNAS(ranUe *amf_context.RanUe, procedureCode int64, nasPdu []byte, initialMessage bool) {
 	isNasMsgRcv := false
 	metricCause := ""
-	nasMsg := nas.NewMessage()
-	// The closure here is for not having to add a deep copy func for the nas.Message type.
+	var nasMsg message.Message
 	defer func() {
 		nas_metrics.IncrMetricsRcvNasMsg(nasMsg, &isNasMsgRcv, &metricCause)
 	}()
@@ -76,17 +76,24 @@ func HandleNAS(ranUe *amf_context.RanUe, procedureCode int64, nasPdu []byte, ini
 
 // Get5GSMobileIdentityFromNASPDU is used to find MobileIdentity from plain nas
 // return value is: mobileId, mobileIdType, err
-func GetNas5GSMobileIdentity(gmmMessage *nas.GmmMessage) (string, string, error) {
-	var err error
-	var mobileId, mobileIdType string
-
-	if gmmMessage.GmmHeader.GetMessageType() == nas.MsgTypeRegistrationRequest {
-		mobileId, mobileIdType, err = gmmMessage.RegistrationRequest.MobileIdentity5GS.GetMobileIdentity()
-	} else if gmmMessage.GmmHeader.GetMessageType() == nas.MsgTypeServiceRequest {
-		mobileId, mobileIdType, err = gmmMessage.ServiceRequest.TMSI5GS.Get5GSTMSI()
-	} else {
-		err = fmt.Errorf("gmmMessageType: [%d] is not RegistrationRequest or ServiceRequest",
-			gmmMessage.GmmHeader.GetMessageType())
+func GetNas5GSMobileIdentity(gmmMessage message.Message) (string, string, error) {
+	var mobileIdentity *ie.MobileId5GS
+	switch msg := gmmMessage.(type) {
+	case *message.RegReq:
+		mobileIdentity = msg.MobileId5GS
+	case *message.SvcReq:
+		mobileIdentity = msg.TMSI5GS
+	default:
+		if gmmMessage == nil {
+			return "", "", fmt.Errorf("GMM message is nil")
+		}
+		return "", "", fmt.Errorf(
+			"GMM message type [%d] is not RegistrationRequest or ServiceRequest",
+			gmmMessage.MsgType(),
+		)
 	}
-	return mobileId, mobileIdType, err
+	if mobileIdentity == nil {
+		return "", "", fmt.Errorf("GMM message has no 5GS mobile identity")
+	}
+	return mobileIdentity.IdStr(), ie.IdType5GSStr(mobileIdentity.TypeOfId), nil
 }

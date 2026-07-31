@@ -55,7 +55,7 @@ func (s *Server) getHttpCallBackRoutes() []Route {
 }
 
 func (s *Server) HTTPAmPolicyControlUpdateNotifyUpdate(c *gin.Context) {
-	var policyUpdate models.PcfAmPolicyControlPolicyUpdate
+	var policyUpdate models.Pcf_AMPolCtrl_PolicyUpdate
 
 	requestBody, err := c.GetRawData()
 	if err != nil {
@@ -88,7 +88,7 @@ func (s *Server) HTTPAmPolicyControlUpdateNotifyUpdate(c *gin.Context) {
 }
 
 func (s *Server) HTTPAmPolicyControlUpdateNotifyTerminate(c *gin.Context) {
-	var terminationNotification models.PcfAmPolicyControlTerminationNotification
+	var terminationNotification models.Pcf_AMPolCtrl_TerminationNotification
 
 	requestBody, err := c.GetRawData()
 	if err != nil {
@@ -121,8 +121,8 @@ func (s *Server) HTTPAmPolicyControlUpdateNotifyTerminate(c *gin.Context) {
 }
 
 func (s *Server) HTTPN1MessageNotify(c *gin.Context) {
-	var n1MessageNotify models.N1MessageNotifyRequest
-	n1MessageNotify.JsonData = new(models.N1MessageNotification)
+	var n1MessageNotify models.N1MessageNotifyRequestBody
+	n1MessageNotify.JsonData = new(models.Amf_Comm_N1MessageNotification)
 
 	err := c.ShouldBindWith(&n1MessageNotify, openapi.MultipartRelatedBinding{})
 	if err != nil {
@@ -141,7 +141,7 @@ func (s *Server) HTTPN1MessageNotify(c *gin.Context) {
 }
 
 func (s *Server) HTTPSmContextStatusNotify(c *gin.Context) {
-	var smContextStatusNotification models.SmfPduSessionSmContextStatusNotification
+	var smContextStatusNotification models.Smf_PDUSess_SmContextStatusNotification
 
 	requestBody, err := c.GetRawData()
 	if err != nil {
@@ -178,7 +178,7 @@ func (s *Server) HTTPHandleDeregistrationNotification(c *gin.Context) {
 	// TS 23.502 - 4.2.2.2.2 - step 14d
 	logger.CallbackLog.Traceln("Handle Deregistration Notification")
 
-	var deregData models.DeregistrationData
+	var deregData models.Udm_UECM_DeregistrationData
 
 	requestBody, err := c.GetRawData()
 	if err != nil {
@@ -234,11 +234,14 @@ func (s *Server) HTTPHandleDeregistrationNotification(c *gin.Context) {
 // TS 23.502 - 4.2.2.3.3 Network-initiated Deregistration
 // The AMF can initiate this procedure for either explicit (e.g. by O&M intervention) or
 // implicit (e.g. expiring of Implicit Deregistration timer)
-func (s *Server) DeregistrationNotificationProcedure(ue *amf_context.AmfUe, deregData models.DeregistrationData) (
+func (s *Server) DeregistrationNotificationProcedure(
+	ue *amf_context.AmfUe,
+	deregData models.Udm_UECM_DeregistrationData,
+) (
 	problemDetails *models.ProblemDetails, err error,
 ) {
 	// The AMF does not send the Deregistration Request message to the UE for Implicit Deregistration.
-	if deregData.DeregReason == models.DeregistrationReason_UE_INITIAL_REGISTRATION {
+	if deregData.DeregReason == models.Udm_UECM_DeregistrationReason_UE_INITIAL_REGISTRATION {
 		// TS 23.502 - 4.2.2.2.2 General Registration
 		// Invokes the Nsmf_PDUSession_ReleaseSMContext for the corresponding access type
 		ue.SmContextList.Range(func(key, value interface{}) bool {

@@ -1,16 +1,17 @@
 package context
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/mohae/deepcopy"
 	"github.com/sirupsen/logrus"
 
 	"github.com/free5gc/amf/internal/logger"
-	"github.com/free5gc/ngap/ngapConvert"
-	"github.com/free5gc/ngap/ngapType"
+	"github.com/free5gc/ngap/ie"
 	"github.com/free5gc/openapi/models"
 )
 
@@ -32,7 +33,7 @@ type RanUe struct {
 	AmfUeNgapId int64
 
 	/* HandOver Info*/
-	HandOverType        ngapType.HandoverType
+	HandOverType        ie.HandoverType
 	HandOverStartTime   time.Time
 	SuccessPduSessionId []int32
 	SourceUe            *RanUe
@@ -135,7 +136,7 @@ func (ranUe *RanUe) UpdateLogFields() {
 
 		anTypeStr := ""
 		switch ranUe.Ran.AnType {
-		case models.AccessType__3_GPP_ACCESS:
+		case models.AccessType_3_GPP_ACCESS:
 			anTypeStr = "3GPP"
 		case models.AccessType_NON_3_GPP_ACCESS:
 			anTypeStr = "Non3GPP"
@@ -148,179 +149,159 @@ func (ranUe *RanUe) UpdateLogFields() {
 	}
 }
 
-func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocationInformation) {
+func (ranUe *RanUe) UpdateLocation(userLocationInformation *ie.UserLocationInformation) {
 	if userLocationInformation == nil {
 		return
 	}
 
-	amfSelf := GetSelf()
-	curTime := time.Now().UTC()
-	switch userLocationInformation.Present {
-	case ngapType.UserLocationInformationPresentUserLocationInformationEUTRA:
-		locationInfoEUTRA := userLocationInformation.UserLocationInformationEUTRA
-		if ranUe.Location.EutraLocation == nil {
-			ranUe.Location.EutraLocation = new(models.EutraLocation)
+	switch location := userLocationInformation.Choice.(type) {
+	case *ie.UserLocationInformationEUTRA:
+		ranUe.updateEutraLocation(location)
+	case *ie.UserLocationInformationNR:
+		ranUe.updateNRLocation(location)
+	case *ie.UserLocationInformationN3IWF:
+		ranUe.updateN3gaLocation(location.IPAddress, location.PortNumber)
+	case *ie.ProtocolIESingleContainerUserLocationInformationExtIEs:
+		extensions := location.UserLocationInformationExtIEs
+		switch {
+		case extensions.UserLocationInformationTNGF != nil:
+			entry := extensions.UserLocationInformationTNGF
+			ranUe.updateN3gaLocation(entry.IPAddress, entry.PortNumber)
+		case extensions.UserLocationInformationTWIF != nil:
+			entry := extensions.UserLocationInformationTWIF
+			ranUe.updateN3gaLocation(entry.IPAddress, entry.PortNumber)
+		case extensions.UserLocationInformationWAGF != nil:
+			ranUe.Log.Debug("W-AGF user location is not mapped to an N3GA location")
 		}
-
-		tAI := locationInfoEUTRA.TAI
-		plmnID := ngapConvert.PlmnIdToModels(tAI.PLMNIdentity)
-		tac := hex.EncodeToString(tAI.TAC.Value)
-
-		if ranUe.Location.EutraLocation.Tai == nil {
-			ranUe.Location.EutraLocation.Tai = new(models.Tai)
-		}
-		ranUe.Location.EutraLocation.Tai.PlmnId = &plmnID
-		ranUe.Location.EutraLocation.Tai.Tac = tac
-		ranUe.Tai = *ranUe.Location.EutraLocation.Tai
-
-		eUTRACGI := locationInfoEUTRA.EUTRACGI
-		ePlmnID := ngapConvert.PlmnIdToModels(eUTRACGI.PLMNIdentity)
-		eutraCellID := ngapConvert.BitStringToHex(&eUTRACGI.EUTRACellIdentity.Value)
-
-		if ranUe.Location.EutraLocation.Ecgi == nil {
-			ranUe.Location.EutraLocation.Ecgi = new(models.Ecgi)
-		}
-		ranUe.Location.EutraLocation.Ecgi.PlmnId = &ePlmnID
-		ranUe.Location.EutraLocation.Ecgi.EutraCellId = eutraCellID
-		ranUe.Location.EutraLocation.UeLocationTimestamp = &curTime
-		if locationInfoEUTRA.TimeStamp != nil {
-			ranUe.Location.EutraLocation.AgeOfLocationInformation = ngapConvert.TimeStampToInt32(
-				locationInfoEUTRA.TimeStamp.Value)
-		}
-		if ranUe.AmfUe != nil {
-			if ranUe.AmfUe.Tai != ranUe.Tai {
-				ranUe.AmfUe.LocationChanged = true
-			}
-			ranUe.AmfUe.Location = deepcopy.Copy(ranUe.Location).(models.UserLocation)
-			ranUe.AmfUe.Tai = deepcopy.Copy(*ranUe.AmfUe.Location.EutraLocation.Tai).(models.Tai)
-		}
-	case ngapType.UserLocationInformationPresentUserLocationInformationNR:
-		locationInfoNR := userLocationInformation.UserLocationInformationNR
-		if ranUe.Location.NrLocation == nil {
-			ranUe.Location.NrLocation = new(models.NrLocation)
-		}
-
-		tAI := locationInfoNR.TAI
-		plmnID := ngapConvert.PlmnIdToModels(tAI.PLMNIdentity)
-		tac := hex.EncodeToString(tAI.TAC.Value)
-
-		if ranUe.Location.NrLocation.Tai == nil {
-			ranUe.Location.NrLocation.Tai = new(models.Tai)
-		}
-		ranUe.Location.NrLocation.Tai.PlmnId = &plmnID
-		ranUe.Location.NrLocation.Tai.Tac = tac
-		ranUe.Tai = deepcopy.Copy(*ranUe.Location.NrLocation.Tai).(models.Tai)
-
-		nRCGI := locationInfoNR.NRCGI
-		nRPlmnID := ngapConvert.PlmnIdToModels(nRCGI.PLMNIdentity)
-		nRCellID := ngapConvert.BitStringToHex(&nRCGI.NRCellIdentity.Value)
-
-		if ranUe.Location.NrLocation.Ncgi == nil {
-			ranUe.Location.NrLocation.Ncgi = new(models.Ncgi)
-		}
-		ranUe.Location.NrLocation.Ncgi.PlmnId = &nRPlmnID
-		ranUe.Location.NrLocation.Ncgi.NrCellId = nRCellID
-		ranUe.Location.NrLocation.UeLocationTimestamp = &curTime
-		if locationInfoNR.TimeStamp != nil {
-			ranUe.Location.NrLocation.AgeOfLocationInformation = ngapConvert.TimeStampToInt32(locationInfoNR.TimeStamp.Value)
-		}
-		if ranUe.AmfUe != nil {
-			if ranUe.AmfUe.Tai != ranUe.Tai {
-				ranUe.AmfUe.LocationChanged = true
-			}
-			ranUe.AmfUe.Location = deepcopy.Copy(ranUe.Location).(models.UserLocation)
-			ranUe.AmfUe.Tai = deepcopy.Copy(*ranUe.AmfUe.Location.NrLocation.Tai).(models.Tai)
-		}
-	case ngapType.UserLocationInformationPresentUserLocationInformationN3IWF:
-		locationInfoN3IWF := userLocationInformation.UserLocationInformationN3IWF
-		if ranUe.Location.N3gaLocation == nil {
-			ranUe.Location.N3gaLocation = new(models.N3gaLocation)
-		}
-
-		ip := locationInfoN3IWF.IPAddress
-		port := locationInfoN3IWF.PortNumber
-
-		ipv4Addr, ipv6Addr := ngapConvert.IPAddressToString(ip)
-
-		ranUe.Location.N3gaLocation.UeIpv4Addr = ipv4Addr
-		ranUe.Location.N3gaLocation.UeIpv6Addr = ipv6Addr
-		ranUe.Location.N3gaLocation.PortNumber = ngapConvert.PortNumberToInt(port)
-		// N3GPP TAI is operator-specific
-		// TODO: define N3GPP TAI
-		ranUe.Location.N3gaLocation.N3gppTai = &models.Tai{
-			PlmnId: amfSelf.SupportTaiLists[0].PlmnId,
-			Tac:    amfSelf.SupportTaiLists[0].Tac,
-		}
-		ranUe.Tai = deepcopy.Copy(*ranUe.Location.N3gaLocation.N3gppTai).(models.Tai)
-
-		if ranUe.AmfUe != nil {
-			ranUe.AmfUe.Location = deepcopy.Copy(ranUe.Location).(models.UserLocation)
-			ranUe.AmfUe.Tai = *ranUe.Location.N3gaLocation.N3gppTai
-		}
-	case ngapType.UserLocationInformationPresentChoiceExtensions:
-		switch userLocationInformation.ChoiceExtensions.UserLocationInformationExtIEs.Id.Value {
-		case ngapType.ProtocolIEIDUserLocationInformationTNGF:
-			// TNGF
-			userLocationInformationExtIEsValue := userLocationInformation.
-				ChoiceExtensions.UserLocationInformationExtIEs.Value.UserLocationInformationTNGF
-			if ranUe.Location.N3gaLocation == nil {
-				ranUe.Location.N3gaLocation = new(models.N3gaLocation)
-			}
-
-			ip := userLocationInformationExtIEsValue.IPAddress
-			// port := userLocationInformationExtIEsValue.PortNumber
-
-			ipv4Addr, ipv6Addr := ngapConvert.IPAddressToString(ip)
-
-			ranUe.Location.N3gaLocation.UeIpv4Addr = ipv4Addr
-			ranUe.Location.N3gaLocation.UeIpv6Addr = ipv6Addr
-			// ranUe.Location.N3gaLocation.PortNumber = ngapConvert.PortNumberToInt(port)
-			// N3GPP TAI is operator-specific
-			// TODO: define N3GPP TAI
-			ranUe.Location.N3gaLocation.N3gppTai = &models.Tai{
-				PlmnId: amfSelf.SupportTaiLists[0].PlmnId,
-				Tac:    amfSelf.SupportTaiLists[0].Tac,
-			}
-			ranUe.Tai = deepcopy.Copy(*ranUe.Location.N3gaLocation.N3gppTai).(models.Tai)
-
-			if ranUe.AmfUe != nil {
-				ranUe.AmfUe.Location = deepcopy.Copy(ranUe.Location).(models.UserLocation)
-				ranUe.AmfUe.Tai = *ranUe.Location.N3gaLocation.N3gppTai
-			}
-		case ngapType.ProtocolIEIDUserLocationInformationTWIF:
-			// TWIF
-			userLocationInformationExtIEsValue := userLocationInformation.
-				ChoiceExtensions.UserLocationInformationExtIEs.Value.UserLocationInformationTWIF
-
-			if ranUe.Location.N3gaLocation == nil {
-				ranUe.Location.N3gaLocation = new(models.N3gaLocation)
-			}
-
-			ip := userLocationInformationExtIEsValue.IPAddress
-			// port := userLocationInformationExtIEsValue.PortNumber
-
-			ipv4Addr, ipv6Addr := ngapConvert.IPAddressToString(ip)
-
-			ranUe.Location.N3gaLocation.UeIpv4Addr = ipv4Addr
-			ranUe.Location.N3gaLocation.UeIpv6Addr = ipv6Addr
-			// ranUe.Location.N3gaLocation.PortNumber = ngapConvert.PortNumberToInt(port)
-			// N3GPP TAI is operator-specific
-			// TODO: define N3GPP TAI
-			ranUe.Location.N3gaLocation.N3gppTai = &models.Tai{
-				PlmnId: amfSelf.SupportTaiLists[0].PlmnId,
-				Tac:    amfSelf.SupportTaiLists[0].Tac,
-			}
-			ranUe.Tai = deepcopy.Copy(*ranUe.Location.N3gaLocation.N3gppTai).(models.Tai)
-
-			if ranUe.AmfUe != nil {
-				ranUe.AmfUe.Location = deepcopy.Copy(ranUe.Location).(models.UserLocation)
-				ranUe.AmfUe.Tai = *ranUe.Location.N3gaLocation.N3gppTai
-			}
-
-		case ngapType.ProtocolIEIDUserLocationInformationWAGF:
-			// W-AGF
-		}
-
-	case ngapType.UserLocationInformationPresentNothing:
+	default:
+		ranUe.Log.Warnf("Unsupported user location choice %T", userLocationInformation.Choice)
 	}
+}
+
+func (ranUe *RanUe) updateEutraLocation(location *ie.UserLocationInformationEUTRA) {
+	if location == nil || location.TAI == nil || location.EUTRACGI == nil {
+		return
+	}
+	if ranUe.Location.EutraLocation == nil {
+		ranUe.Location.EutraLocation = new(models.EutraLocation)
+	}
+
+	tai := models.Tai{
+		PlmnId: plmnIdentityToModels(location.TAI.PLMNIdentity),
+	}
+	if location.TAI.TAC != nil {
+		tai.Tac = hex.EncodeToString(location.TAI.TAC.Value)
+	}
+	ranUe.Location.EutraLocation.Tai = &tai
+	ranUe.Tai = tai
+
+	ecgi := &models.Ecgi{PlmnId: plmnIdentityToModels(location.EUTRACGI.PLMNIdentity)}
+	if location.EUTRACGI.EUTRACellIdentity != nil {
+		ecgi.EutraCellId = bitStringToHex(location.EUTRACGI.EUTRACellIdentity.Value)
+	}
+	ranUe.Location.EutraLocation.Ecgi = ecgi
+	ranUe.Location.EutraLocation.UeLocationTimestamp = locationTimestamp()
+	if location.TimeStamp != nil {
+		ranUe.Location.EutraLocation.AgeOfLocationInformation = timestampToInt32(location.TimeStamp)
+	}
+	ranUe.syncAmfUeLocation()
+}
+
+func (ranUe *RanUe) updateNRLocation(location *ie.UserLocationInformationNR) {
+	if location == nil || location.TAI == nil || location.NRCGI == nil {
+		return
+	}
+	if ranUe.Location.NrLocation == nil {
+		ranUe.Location.NrLocation = new(models.NrLocation)
+	}
+
+	tai := models.Tai{
+		PlmnId: plmnIdentityToModels(location.TAI.PLMNIdentity),
+	}
+	if location.TAI.TAC != nil {
+		tai.Tac = hex.EncodeToString(location.TAI.TAC.Value)
+	}
+	ranUe.Location.NrLocation.Tai = &tai
+	ranUe.Tai = tai
+
+	ncgi := &models.Ncgi{PlmnId: plmnIdentityToModels(location.NRCGI.PLMNIdentity)}
+	if location.NRCGI.NRCellIdentity != nil {
+		ncgi.NrCellId = bitStringToHex(location.NRCGI.NRCellIdentity.Value)
+	}
+	ranUe.Location.NrLocation.Ncgi = ncgi
+	ranUe.Location.NrLocation.UeLocationTimestamp = locationTimestamp()
+	if location.TimeStamp != nil {
+		ranUe.Location.NrLocation.AgeOfLocationInformation = timestampToInt32(location.TimeStamp)
+	}
+	ranUe.syncAmfUeLocation()
+}
+
+func (ranUe *RanUe) updateN3gaLocation(address *ie.TransportLayerAddress, port *ie.PortNumber) {
+	if address == nil {
+		return
+	}
+	if ranUe.Location.N3gaLocation == nil {
+		ranUe.Location.N3gaLocation = new(models.N3gaLocation)
+	}
+
+	ranUe.Location.N3gaLocation.UeIpv4Addr, ranUe.Location.N3gaLocation.UeIpv6Addr = ipAddressToString(address)
+	if port != nil && len(port.Value) == 2 {
+		ranUe.Location.N3gaLocation.PortNumber = int32(binary.BigEndian.Uint16(port.Value))
+	}
+	amfSelf := GetSelf()
+	if len(amfSelf.SupportTaiLists) == 0 {
+		return
+	}
+	ranUe.Location.N3gaLocation.N3gppTai = &models.Tai{
+		PlmnId: amfSelf.SupportTaiLists[0].PlmnId,
+		Tac:    amfSelf.SupportTaiLists[0].Tac,
+	}
+	ranUe.Tai = deepcopy.Copy(*ranUe.Location.N3gaLocation.N3gppTai).(models.Tai)
+	ranUe.syncAmfUeLocation()
+}
+
+func (ranUe *RanUe) syncAmfUeLocation() {
+	if ranUe.AmfUe == nil {
+		return
+	}
+	if ranUe.AmfUe.Tai != ranUe.Tai {
+		ranUe.AmfUe.LocationChanged = true
+	}
+	ranUe.AmfUe.Location = deepcopy.Copy(ranUe.Location).(models.UserLocation)
+	ranUe.AmfUe.Tai = deepcopy.Copy(ranUe.Tai).(models.Tai)
+}
+
+func locationTimestamp() *time.Time {
+	now := time.Now().UTC()
+	return &now
+}
+
+func timestampToInt32(timestamp *ie.TimeStamp) int32 {
+	if timestamp == nil || len(timestamp.Value) != 4 {
+		return 0
+	}
+	return int32(binary.BigEndian.Uint32(timestamp.Value))
+}
+
+func ipAddressToString(address *ie.TransportLayerAddress) (ipv4, ipv6 string) {
+	if address == nil {
+		return "", ""
+	}
+	bytes := address.Value.Bytes
+	switch address.Value.BitLength {
+	case 32:
+		if len(bytes) >= net.IPv4len {
+			return net.IPv4(bytes[0], bytes[1], bytes[2], bytes[3]).String(), ""
+		}
+	case 128:
+		if len(bytes) >= net.IPv6len {
+			return "", net.IP(bytes[:net.IPv6len]).String()
+		}
+	case 160:
+		if len(bytes) >= net.IPv4len+net.IPv6len {
+			return net.IPv4(bytes[0], bytes[1], bytes[2], bytes[3]).String(),
+				net.IP(bytes[net.IPv4len : net.IPv4len+net.IPv6len]).String()
+		}
+	}
+	return "", ""
 }

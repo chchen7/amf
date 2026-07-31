@@ -48,7 +48,7 @@ func (s *Server) HTTPDeleteSubscription(c *gin.Context) {
 
 // ModifySubscription - Namf_EventExposure Subscribe Modify service Operation
 func (s *Server) HTTPModifySubscription(c *gin.Context) {
-	var modifySubscriptionRequest models.ModifySubscriptionRequest
+	var modifySubscriptionRequest models.ModifySubscriptionRequestBody
 
 	requestBody, err := c.GetRawData()
 	if err != nil {
@@ -81,7 +81,7 @@ func (s *Server) HTTPModifySubscription(c *gin.Context) {
 }
 
 func (s *Server) HTTPCreateSubscription(c *gin.Context) {
-	var createEventSubscription models.AmfCreateEventSubscription
+	var createEventSubscription models.Amf_EvtExpos_AmfCreateEventSubscription
 
 	requestBody, err := c.GetRawData()
 	if err != nil {

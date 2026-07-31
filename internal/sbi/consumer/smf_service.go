@@ -11,15 +11,26 @@ import (
 	amf_context "github.com/free5gc/amf/internal/context"
 	"github.com/free5gc/amf/internal/util"
 	"github.com/free5gc/amf/pkg/factory"
-	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/nas/ie"
 	"github.com/free5gc/openapi"
+	"github.com/free5gc/openapi/mediatype/multipart"
 	"github.com/free5gc/openapi/models"
-	Nnrf_NFDiscovery "github.com/free5gc/openapi/nrf/NFDiscovery"
-	Nsmf_PDUSession "github.com/free5gc/openapi/smf/PDUSession"
+	Nnrf_NFDiscovery "github.com/free5gc/openapi/nrf/NFDisc"
+	Nsmf_PDUSession "github.com/free5gc/openapi/smf/PDUSess"
 	sbi_metrics "github.com/free5gc/util/metrics/sbi"
 )
 
 var n2sminfocon = "N2SmInfo"
+
+func relatedContent(contentID string, content []byte) *multipart.RelatedContent {
+	if content == nil {
+		return nil
+	}
+	return &multipart.RelatedContent{
+		ContentID: contentID,
+		Content:   content,
+	}
+}
 
 type nsmfService struct {
 	consumer *Consumer
@@ -74,8 +85,8 @@ func (s *nsmfService) SelectSmf(
 			// TODO: Set a timeout of NSSF Selection or will starvation here
 			for {
 				searchReq := Nnrf_NFDiscovery.SearchNFInstancesRequest{}
-				if err := s.consumer.SearchNssfNSSelectionInstance(ue, nrfUri, models.NrfNfManagementNfType_NSSF,
-					models.NrfNfManagementNfType_AMF, &searchReq); err != nil {
+				if err := s.consumer.SearchNssfNSSelectionInstance(ue, nrfUri, models.Nrf_NFMgmt_NFType_NSSF,
+					models.Nrf_NFMgmt_NFType_AMF, &searchReq); err != nil {
 					ue.GmmLog.Errorf("AMF can not select an NSSF Instance by NRF[Error: %+v]", err)
 					time.Sleep(2 * time.Second)
 				} else {
@@ -87,10 +98,10 @@ func (s *nsmfService) SelectSmf(
 		response, problemDetails, err := s.consumer.NSSelectionGetForPduSession(ue, snssai)
 		if err != nil {
 			err = fmt.Errorf("NSSelection Get Error[%+v]", err)
-			return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, err
+			return nil, ie.Cause5GMM_PayloadWasNotForwarded, err
 		} else if problemDetails != nil {
 			err = fmt.Errorf("NSSelection Get Failed Problem[%+v]", problemDetails)
-			return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, err
+			return nil, ie.Cause5GMM_PayloadWasNotForwarded, err
 		}
 		nsiInformation = response.NsiInformation
 	}
@@ -113,7 +124,7 @@ func (s *nsmfService) SelectSmf(
 	}
 
 	param := Nnrf_NFDiscovery.SearchNFInstancesRequest{
-		ServiceNames: []models.ServiceName{models.ServiceName_NSMF_PDUSESSION},
+		ServiceNames: []models.Nrf_NFMgmt_ServiceName{models.Nrf_NFMgmt_ServiceName_NSMF_PDUSESSION},
 		Dnn:          &dnn,
 		Snssais:      []models.Snssai{snssai},
 	}
@@ -126,21 +137,21 @@ func (s *nsmfService) SelectSmf(
 
 	ue.GmmLog.Debugf("Search SMF from NRF[%s]", nrfUri)
 
-	result, err := s.consumer.SendSearchNFInstances(nrfUri, models.NrfNfManagementNfType_SMF,
-		models.NrfNfManagementNfType_AMF, &param)
+	result, err := s.consumer.SendSearchNFInstances(nrfUri, models.Nrf_NFMgmt_NFType_SMF,
+		models.Nrf_NFMgmt_NFType_AMF, &param)
 	if err != nil {
-		return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, err
+		return nil, ie.Cause5GMM_PayloadWasNotForwarded, err
 	}
 
 	if len(result.NfInstances) == 0 {
 		err = fmt.Errorf("DNN[%s] is not supported or not subscribed in the slice[Snssai: %+v]", dnn, snssai)
-		return nil, nasMessage.Cause5GMMDNNNotSupportedOrNotSubscribedInTheSlice, err
+		return nil, ie.Cause5GMM_DNNNotSupportedOrNotSubscribedInTheSlice, err
 	}
 
 	// select the first SMF, TODO: select base on other info
 	for index := range result.NfInstances {
-		smfUri = util.SearchNFServiceUri(&result.NfInstances[index], models.ServiceName_NSMF_PDUSESSION,
-			models.NfServiceStatus_REGISTERED)
+		smfUri = util.SearchNFServiceUri(&result.NfInstances[index], models.Nrf_NFMgmt_ServiceName_NSMF_PDUSESSION,
+			models.Nrf_NFMgmt_NFServiceStatus_REGISTERED)
 		if smfUri != "" {
 			break
 		}
@@ -151,16 +162,16 @@ func (s *nsmfService) SelectSmf(
 }
 
 func (s *nsmfService) SendCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.SmContext,
-	requestType *models.RequestType, nasPdu []byte) (
-	smContextRef string, errorResponse *models.PostSmContextsError,
+	requestType *models.Smf_PDUSess_RequestType, nasPdu []byte) (
+	smContextRef string, errorResponse *models.PostSmContextsResponse400,
 	problemDetail *models.ProblemDetails, err1 error,
 ) {
 	smContextCreateData := s.buildCreateSmContextRequest(ue, smContext, nil)
 
 	postSmContextsRequest := Nsmf_PDUSession.PostSmContextsRequest{
-		PostSmContextsRequest: &models.PostSmContextsRequest{
+		RequestBody: &models.PostSmContextsRequestBody{
 			JsonData:              &smContextCreateData,
-			BinaryDataN1SmMessage: nasPdu,
+			BinaryDataN1SmMessage: relatedContent("n1SmMsg", nasPdu),
 		},
 	}
 
@@ -169,7 +180,7 @@ func (s *nsmfService) SendCreateSmContextRequest(ue *amf_context.AmfUe, smContex
 		return "", nil, nil, openapi.ReportError("smf not found")
 	}
 
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NSMF_PDUSESSION, models.NrfNfManagementNfType_SMF)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NSMF_PDUSESSION, models.Nrf_NFMgmt_NFType_SMF)
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -192,8 +203,8 @@ func (s *nsmfService) SendCreateSmContextRequest(ue *amf_context.AmfUe, smContex
 		case openapi.GenericOpenAPIError:
 			switch errModel := errType.Model().(type) {
 			case Nsmf_PDUSession.PostSmContextsError:
-				problemDetail = &errModel.ProblemDetails
-				errorResponse = &errModel.PostSmContextsError
+				problemDetail = errModel.ProblemDetails
+				errorResponse = errModel.PostSmContextsResponse400
 			case error:
 				err1 = errModel
 			default:
@@ -209,8 +220,8 @@ func (s *nsmfService) SendCreateSmContextRequest(ue *amf_context.AmfUe, smContex
 }
 
 func (s *nsmfService) buildCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.SmContext,
-	requestType *models.RequestType,
-) (smContextCreateData models.SmfPduSessionSmContextCreateData) {
+	requestType *models.Smf_PDUSess_RequestType,
+) (smContextCreateData models.Smf_PDUSess_SmContextCreateData) {
 	context := amf_context.GetSelf()
 	smContextCreateData.Supi = ue.Supi
 	smContextCreateData.UnauthenticatedSupi = ue.UnauthenticatedSupi
@@ -261,8 +272,8 @@ func (s *nsmfService) SendUpdateSmContextActivateUpCnxState(
 	ue *amf_context.AmfUe, smContext *amf_context.SmContext, accessType models.AccessType) (
 	*models.UpdateSmContextResponse200, *models.UpdateSmContextResponse400, *models.ProblemDetails, error,
 ) {
-	updateData := models.SmfPduSessionSmContextUpdateData{}
-	updateData.UpCnxState = models.UpCnxState_ACTIVATING
+	updateData := models.Smf_PDUSess_SmContextUpdateData{}
+	updateData.UpCnxState = models.Smf_PDUSess_UpCnxState_ACTIVATING
 	if !amf_context.CompareUserLocation(ue.Location, smContext.UserLocation()) {
 		updateData.UeLocation = &ue.Location
 	}
@@ -281,8 +292,8 @@ func (s *nsmfService) SendUpdateSmContextDeactivateUpCnxState(ue *amf_context.Am
 	smContext *amf_context.SmContext, cause amf_context.CauseAll) (
 	*models.UpdateSmContextResponse200, *models.UpdateSmContextResponse400, *models.ProblemDetails, error,
 ) {
-	updateData := models.SmfPduSessionSmContextUpdateData{}
-	updateData.UpCnxState = models.UpCnxState_DEACTIVATED
+	updateData := models.Smf_PDUSess_SmContextUpdateData{}
+	updateData.UpCnxState = models.Smf_PDUSess_UpCnxState_DEACTIVATED
 	updateData.UeLocation = &ue.Location
 	if cause.Cause != nil {
 		updateData.Cause = *cause.Cause
@@ -300,16 +311,16 @@ func (s *nsmfService) SendUpdateSmContextChangeAccessType(ue *amf_context.AmfUe,
 	smContext *amf_context.SmContext, anTypeCanBeChanged bool) (
 	*models.UpdateSmContextResponse200, *models.UpdateSmContextResponse400, *models.ProblemDetails, error,
 ) {
-	updateData := models.SmfPduSessionSmContextUpdateData{}
+	updateData := models.Smf_PDUSess_SmContextUpdateData{}
 	updateData.AnTypeCanBeChanged = anTypeCanBeChanged
 	return s.consumer.SendUpdateSmContextRequest(smContext, &updateData, nil, nil)
 }
 
 func (s *nsmfService) SendUpdateSmContextN2Info(
-	ue *amf_context.AmfUe, smContext *amf_context.SmContext, n2SmType models.N2SmInfoType, n2SmInfo []byte) (
+	ue *amf_context.AmfUe, smContext *amf_context.SmContext, n2SmType models.Smf_PDUSess_N2SmInfoType, n2SmInfo []byte) (
 	*models.UpdateSmContextResponse200, *models.UpdateSmContextResponse400, *models.ProblemDetails, error,
 ) {
-	updateData := models.SmfPduSessionSmContextUpdateData{}
+	updateData := models.Smf_PDUSess_SmContextUpdateData{}
 	updateData.N2SmInfoType = n2SmType
 	updateData.N2SmInfo = new(models.RefToBinaryData)
 	updateData.N2SmInfo.ContentId = n2sminfocon
@@ -318,10 +329,10 @@ func (s *nsmfService) SendUpdateSmContextN2Info(
 }
 
 func (s *nsmfService) SendUpdateSmContextXnHandover(
-	ue *amf_context.AmfUe, smContext *amf_context.SmContext, n2SmType models.N2SmInfoType, n2SmInfo []byte) (
+	ue *amf_context.AmfUe, smContext *amf_context.SmContext, n2SmType models.Smf_PDUSess_N2SmInfoType, n2SmInfo []byte) (
 	*models.UpdateSmContextResponse200, *models.UpdateSmContextResponse400, *models.ProblemDetails, error,
 ) {
-	updateData := models.SmfPduSessionSmContextUpdateData{}
+	updateData := models.Smf_PDUSess_SmContextUpdateData{}
 	if n2SmType != "" {
 		updateData.N2SmInfoType = n2SmType
 		updateData.N2SmInfo = new(models.RefToBinaryData)
@@ -340,10 +351,10 @@ func (s *nsmfService) SendUpdateSmContextXnHandover(
 }
 
 func (s *nsmfService) SendUpdateSmContextXnHandoverFailed(
-	ue *amf_context.AmfUe, smContext *amf_context.SmContext, n2SmType models.N2SmInfoType, n2SmInfo []byte) (
+	ue *amf_context.AmfUe, smContext *amf_context.SmContext, n2SmType models.Smf_PDUSess_N2SmInfoType, n2SmInfo []byte) (
 	*models.UpdateSmContextResponse200, *models.UpdateSmContextResponse400, *models.ProblemDetails, error,
 ) {
-	updateData := models.SmfPduSessionSmContextUpdateData{}
+	updateData := models.Smf_PDUSess_SmContextUpdateData{}
 	if n2SmType != "" {
 		updateData.N2SmInfoType = n2SmType
 		updateData.N2SmInfo = new(models.RefToBinaryData)
@@ -356,17 +367,17 @@ func (s *nsmfService) SendUpdateSmContextXnHandoverFailed(
 func (s *nsmfService) SendUpdateSmContextN2HandoverPreparing(
 	ue *amf_context.AmfUe,
 	smContext *amf_context.SmContext,
-	n2SmType models.N2SmInfoType,
-	n2SmInfo []byte, amfid string, targetId *models.NgRanTargetId) (
+	n2SmType models.Smf_PDUSess_N2SmInfoType,
+	n2SmInfo []byte, amfid string, targetId *models.Amf_Comm_NgRanTargetId) (
 	*models.UpdateSmContextResponse200, *models.UpdateSmContextResponse400, *models.ProblemDetails, error,
 ) {
-	updateData := models.SmfPduSessionSmContextUpdateData{}
+	updateData := models.Smf_PDUSess_SmContextUpdateData{}
 	if n2SmType != "" {
 		updateData.N2SmInfoType = n2SmType
 		updateData.N2SmInfo = new(models.RefToBinaryData)
 		updateData.N2SmInfo.ContentId = n2sminfocon
 	}
-	updateData.HoState = models.HoState_PREPARING
+	updateData.HoState = models.Smf_PDUSess_HoState_PREPARING
 	updateData.TargetId = targetId
 	// amf changed in same plmn
 	if amfid != "" {
@@ -376,16 +387,16 @@ func (s *nsmfService) SendUpdateSmContextN2HandoverPreparing(
 }
 
 func (s *nsmfService) SendUpdateSmContextN2HandoverPrepared(
-	ue *amf_context.AmfUe, smContext *amf_context.SmContext, n2SmType models.N2SmInfoType, n2SmInfo []byte) (
+	ue *amf_context.AmfUe, smContext *amf_context.SmContext, n2SmType models.Smf_PDUSess_N2SmInfoType, n2SmInfo []byte) (
 	*models.UpdateSmContextResponse200, *models.UpdateSmContextResponse400, *models.ProblemDetails, error,
 ) {
-	updateData := models.SmfPduSessionSmContextUpdateData{}
+	updateData := models.Smf_PDUSess_SmContextUpdateData{}
 	if n2SmType != "" {
 		updateData.N2SmInfoType = n2SmType
 		updateData.N2SmInfo = new(models.RefToBinaryData)
 		updateData.N2SmInfo.ContentId = n2sminfocon
 	}
-	updateData.HoState = models.HoState_PREPARED
+	updateData.HoState = models.Smf_PDUSess_HoState_PREPARED
 	return s.consumer.SendUpdateSmContextRequest(smContext, &updateData, nil, n2SmInfo)
 }
 
@@ -393,8 +404,8 @@ func (s *nsmfService) SendUpdateSmContextN2HandoverComplete(
 	ue *amf_context.AmfUe, smContext *amf_context.SmContext, amfid string, guami *models.Guami) (
 	*models.UpdateSmContextResponse200, *models.UpdateSmContextResponse400, *models.ProblemDetails, error,
 ) {
-	updateData := models.SmfPduSessionSmContextUpdateData{}
-	updateData.HoState = models.HoState_COMPLETED
+	updateData := models.Smf_PDUSess_SmContextUpdateData{}
+	updateData.HoState = models.Smf_PDUSess_HoState_COMPLETED
 	updateData.UeLocation = &ue.Location
 	if amfid != "" {
 		updateData.ServingNfId = amfid
@@ -415,9 +426,9 @@ func (s *nsmfService) SendUpdateSmContextN2HandoverCanceled(ue *amf_context.AmfU
 	smContext *amf_context.SmContext, cause amf_context.CauseAll) (
 	*models.UpdateSmContextResponse200, *models.UpdateSmContextResponse400, *models.ProblemDetails, error,
 ) {
-	updateData := models.SmfPduSessionSmContextUpdateData{}
+	updateData := models.Smf_PDUSess_SmContextUpdateData{}
 	// nolint openapi/model misspelling
-	updateData.HoState = models.HoState_CANCELLED
+	updateData.HoState = models.Smf_PDUSess_HoState_CANCELLED
 	if cause.Cause != nil {
 		updateData.Cause = *cause.Cause
 	}
@@ -434,7 +445,7 @@ func (s *nsmfService) SendUpdateSmContextHandoverBetweenAccessType(
 	ue *amf_context.AmfUe, smContext *amf_context.SmContext, targetAccessType models.AccessType, n1SmMsg []byte) (
 	*models.UpdateSmContextResponse200, *models.UpdateSmContextResponse400, *models.ProblemDetails, error,
 ) {
-	updateData := models.SmfPduSessionSmContextUpdateData{}
+	updateData := models.Smf_PDUSess_SmContextUpdateData{}
 	updateData.AnType = targetAccessType
 	if n1SmMsg != nil {
 		updateData.N1SmMsg = new(models.RefToBinaryData)
@@ -447,12 +458,12 @@ func (s *nsmfService) SendUpdateSmContextHandoverBetweenAMF(
 	ue *amf_context.AmfUe, smContext *amf_context.SmContext, amfid string, guami *models.Guami, activate bool) (
 	*models.UpdateSmContextResponse200, *models.UpdateSmContextResponse400, *models.ProblemDetails, error,
 ) {
-	updateData := models.SmfPduSessionSmContextUpdateData{}
+	updateData := models.Smf_PDUSess_SmContextUpdateData{}
 	updateData.ServingNfId = amfid
 	updateData.ServingNetwork = guami.PlmnId
 	updateData.Guami = guami
 	if activate {
-		updateData.UpCnxState = models.UpCnxState_ACTIVATING
+		updateData.UpCnxState = models.Smf_PDUSess_UpCnxState_ACTIVATING
 		if !amf_context.CompareUserLocation(ue.Location, smContext.UserLocation()) {
 			updateData.UeLocation = &ue.Location
 		}
@@ -466,7 +477,7 @@ func (s *nsmfService) SendUpdateSmContextHandoverBetweenAMF(
 }
 
 func (s *nsmfService) SendUpdateSmContextRequest(smContext *amf_context.SmContext,
-	updateData *models.SmfPduSessionSmContextUpdateData, n1Msg []byte, n2Info []byte) (
+	updateData *models.Smf_PDUSess_SmContextUpdateData, n1Msg []byte, n2Info []byte) (
 	response *models.UpdateSmContextResponse200, errorResponse *models.UpdateSmContextResponse400,
 	problemDetail *models.ProblemDetails, err1 error,
 ) {
@@ -478,21 +489,21 @@ func (s *nsmfService) SendUpdateSmContextRequest(smContext *amf_context.SmContex
 	smCtxRef := smContext.SmContextRef()
 	updateSmContextRequest := Nsmf_PDUSession.UpdateSmContextRequest{
 		SmContextRef: &smCtxRef,
-		UpdateSmContextRequest: &models.UpdateSmContextRequest{
+		RequestBody: &models.UpdateSmContextRequestBody{
 			JsonData:                  updateData,
-			BinaryDataN1SmMessage:     n1Msg,
-			BinaryDataN2SmInformation: n2Info,
+			BinaryDataN1SmMessage:     relatedContent("N1Msg", n1Msg),
+			BinaryDataN2SmInformation: relatedContent(n2sminfocon, n2Info),
 		},
 	}
 
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NSMF_PDUSESSION, models.NrfNfManagementNfType_SMF)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NSMF_PDUSESSION, models.Nrf_NFMgmt_NFType_SMF)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	updateSmContextReponse, localErr := client.IndividualSMContextApi.
 		UpdateSmContext(ctx, &updateSmContextRequest)
 	if localErr == nil {
-		response = &updateSmContextReponse.UpdateSmContextResponse200
+		response = updateSmContextReponse.UpdateSmContextResponse200
 	} else {
 		err1 = localErr
 		switch errType := localErr.(type) {
@@ -500,8 +511,8 @@ func (s *nsmfService) SendUpdateSmContextRequest(smContext *amf_context.SmContex
 		case openapi.GenericOpenAPIError:
 			switch errModel := errType.Model().(type) {
 			case Nsmf_PDUSession.UpdateSmContextError:
-				problemDetail = &errModel.ProblemDetails
-				errorResponse = &errModel.UpdateSmContextResponse400
+				problemDetail = errModel.ProblemDetails
+				errorResponse = errModel.UpdateSmContextResponse400
 			case error:
 				err1 = errModel
 			default:
@@ -519,7 +530,7 @@ func (s *nsmfService) SendUpdateSmContextRequest(smContext *amf_context.SmContex
 // Release SmContext Request
 
 func (s *nsmfService) SendReleaseSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.SmContext,
-	cause *amf_context.CauseAll, n2SmInfoType models.N2SmInfoType,
+	cause *amf_context.CauseAll, n2SmInfoType models.Smf_PDUSess_N2SmInfoType,
 	n2Info []byte,
 ) (detail *models.ProblemDetails, err error) {
 	client := s.getPDUSessionClient(smContext.SmfUri())
@@ -532,12 +543,13 @@ func (s *nsmfService) SendReleaseSmContextRequest(ue *amf_context.AmfUe, smConte
 	smCtxRef := smContext.SmContextRef()
 	releaseSmContextRequest := Nsmf_PDUSession.ReleaseSmContextRequest{
 		SmContextRef: &smCtxRef,
-		ReleaseSmContextRequest: &models.ReleaseSmContextRequest{
-			JsonData: &releaseData,
+		RequestBody: &models.ReleaseSmContextRequestBody{
+			JsonData:                  &releaseData,
+			BinaryDataN2SmInformation: relatedContent(n2sminfocon, n2Info),
 		},
 	}
 
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NSMF_PDUSESSION, models.NrfNfManagementNfType_SMF)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NSMF_PDUSESSION, models.Nrf_NFMgmt_NFType_SMF)
 	if err != nil {
 		return nil, err
 	}
@@ -553,7 +565,7 @@ func (s *nsmfService) SendReleaseSmContextRequest(ue *amf_context.AmfUe, smConte
 		case openapi.GenericOpenAPIError:
 			switch errorModel := apiErr.Model().(type) {
 			case Nsmf_PDUSession.ReleaseSmContextError:
-				detail = &errorModel.ProblemDetails
+				detail = errorModel.ProblemDetails
 			case error:
 				detail = openapi.ProblemDetailsSystemFailure(errorModel.Error())
 			default:
@@ -569,8 +581,8 @@ func (s *nsmfService) SendReleaseSmContextRequest(ue *amf_context.AmfUe, smConte
 }
 
 func (s *nsmfService) buildReleaseSmContextRequest(
-	ue *amf_context.AmfUe, cause *amf_context.CauseAll, n2SmInfoType models.N2SmInfoType, n2Info []byte) (
-	releaseData models.SmfPduSessionSmContextReleaseData,
+	ue *amf_context.AmfUe, cause *amf_context.CauseAll, n2SmInfoType models.Smf_PDUSess_N2SmInfoType, n2Info []byte) (
+	releaseData models.Smf_PDUSess_SmContextReleaseData,
 ) {
 	if cause != nil {
 		if cause.Cause != nil {
