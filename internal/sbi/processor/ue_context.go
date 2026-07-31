@@ -20,7 +20,10 @@ import (
 )
 
 // TS 29.518 5.2.2.2.3
-func (p *Processor) HandleCreateUEContextRequest(c *gin.Context, createUeContextRequest models.CreateUEContextRequestBody) {
+func (p *Processor) HandleCreateUEContextRequest(
+	c *gin.Context,
+	createUeContextRequest models.CreateUEContextRequestBody,
+) {
 	logger.CommLog.Infof("Handle Create UE Context Request")
 
 	ueContextID := c.Param("ueContextId")
@@ -34,7 +37,10 @@ func (p *Processor) HandleCreateUEContextRequest(c *gin.Context, createUeContext
 	}
 }
 
-func (p *Processor) CreateUEContextProcedure(ueContextID string, createUeContextRequest models.CreateUEContextRequestBody) (
+func (p *Processor) CreateUEContextProcedure(
+	ueContextID string,
+	createUeContextRequest models.CreateUEContextRequestBody,
+) (
 	*models.CreateUEContextResponse201, *models.CreateUEContextResponse403,
 ) {
 	amfSelf := context.GetSelf()
@@ -209,7 +215,9 @@ func (p *Processor) ReleaseUEContextProcedure(ueContextID string,
 	return nil
 }
 
-func (p *Processor) HandleMobiRegUe(ue *context.AmfUe, ueContextTransferRspData *models.Amf_Comm_UeContextTransferRspData,
+func (p *Processor) HandleMobiRegUe(
+	ue *context.AmfUe,
+	ueContextTransferRspData *models.Amf_Comm_UeContextTransferRspData,
 	ueContextTransferResponse *models.UEContextTransferResponse200,
 ) {
 	ueContextTransferRspData.UeRadioCapability = &models.Amf_Comm_N2InfoContent{
@@ -357,7 +365,10 @@ func (p *Processor) UEContextTransferProcedure(ueContextID string,
 	return ueContextTransferResponse, nil
 }
 
-func (p *Processor) buildUEContextModel(ue *context.AmfUe, reason models.Amf_Comm_TransferReason) *models.Amf_Comm_UeContext {
+func (p *Processor) buildUEContextModel(
+	ue *context.AmfUe,
+	reason models.Amf_Comm_TransferReason,
+) *models.Amf_Comm_UeContext {
 	ueContext := new(models.Amf_Comm_UeContext)
 	ueContext.Supi = ue.Supi
 	ueContext.SupiUnauthInd = ue.UnauthenticatedSupi
@@ -416,7 +427,8 @@ func (p *Processor) buildUEContextModel(ue *context.AmfUe, reason models.Amf_Com
 		}
 		ueContext.MmContextList = append(ueContext.MmContextList, mmContext)
 	}
-	if reason == models.Amf_Comm_TransferReason_MOBI_REG_UE_VALIDATED || reason == models.Amf_Comm_TransferReason_MOBI_REG {
+	if reason == models.Amf_Comm_TransferReason_MOBI_REG_UE_VALIDATED ||
+		reason == models.Amf_Comm_TransferReason_MOBI_REG {
 		sessionContextList := &ueContext.SessionContextList
 		ue.SmContextList.Range(func(key, value interface{}) bool {
 			smContext := value.(*context.SmContext)

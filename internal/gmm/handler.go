@@ -28,7 +28,6 @@ import (
 	"github.com/free5gc/amf/pkg/factory"
 	"github.com/free5gc/nas/ie"
 	nas_message "github.com/free5gc/nas/message"
-	ngapIE "github.com/free5gc/ngap/ie"
 	ngapType "github.com/free5gc/ngap/ie"
 	"github.com/free5gc/openapi/mediatype/multipart"
 	"github.com/free5gc/openapi/models"
@@ -158,7 +157,7 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 					if n2Info != nil {
 						if responseData.N2SmInfoType == models.Smf_PDUSess_N2SmInfoType_PDU_RES_REL_CMD {
 							ue.GmmLog.Debugln("AMF Transfer NGAP PDU Session Resource Release Command from SMF")
-							list := ngapIE.PDUSessionResourceToReleaseListRelCmd{}
+							list := ngapType.PDUSessionResourceToReleaseListRelCmd{}
 							ngap_message.AppendPDUSessionResourceToReleaseListRelCmd(&list, pduSessionID, n2Info)
 							ngap_message.SendPDUSessionResourceReleaseCommand(ue.RanUe[anType], nil, list)
 						}
@@ -372,7 +371,7 @@ func forward5GSMMessageToSMF(
 				ngap_message.AppendPDUSessionResourceModifyListModReq(&list, pduSessionID, n1Msg, n2SmInfo)
 				ngap_message.SendPDUSessionResourceModifyRequest(ue.RanUe[accessType], list)
 			case models.Smf_PDUSess_N2SmInfoType_PDU_RES_REL_CMD:
-				list := ngapIE.PDUSessionResourceToReleaseListRelCmd{}
+				list := ngapType.PDUSessionResourceToReleaseListRelCmd{}
 				ngap_message.AppendPDUSessionResourceToReleaseListRelCmd(&list, pduSessionID, n2SmInfo)
 				ngap_message.SendPDUSessionResourceReleaseCommand(ue.RanUe[accessType], n1Msg, list)
 			default:
@@ -1478,7 +1477,10 @@ func reestablishAllowedPDUSessionOver3GPP(ue *context.AmfUe, anType models.Acces
 	// check pduSession id is valid
 	if !validator.IsPduSessionIdInPsiRange(requestData.PduSessionId) {
 		ue.GmmLog.Errorln("Invalid PDU Session ID:", requestData.PduSessionId)
-		callback.SendN1N2TransferFailureNotification(ue, models.Amf_Comm_N1N2MessageTransferCause_UE_NOT_REACHABLE_FOR_SESSION)
+		callback.SendN1N2TransferFailureNotification(
+			ue,
+			models.Amf_Comm_N1N2MessageTransferCause_UE_NOT_REACHABLE_FOR_SESSION,
+		)
 		errPduSessionId = append(errPduSessionId, uint8(requestData.PduSessionId))
 		errCause = append(errCause, ie.Cause5GMM_SemanticallyIncorrectMsg)
 	} else if allowedPsi[requestData.PduSessionId] {
@@ -1845,7 +1847,8 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 		return nil
 	}
 
-	if serviceType == uint8(ie.SvcType_Signalling) {
+	// This spelling is the name exported by the NAS API.
+	if serviceType == uint8(ie.SvcType_Signalling) { //nolint:misspell
 		err := gmm_message.SendServiceAccept(ue, anType, cxtList, pduStatusResult, nil, nil, nil)
 		return err
 	}

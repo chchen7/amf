@@ -87,8 +87,9 @@ func FuzzHandleNAS(f *testing.F) {
 	}))
 
 	serviceRequest := mustMarshal(f, &message.SvcReq{
-		Ngksi:   &ie.NASKeySetId{Tsc: ie.SecCtxTypeNative},
-		SvcType: &ie.SvcType{Value: ie.SvcType_Signalling},
+		Ngksi: &ie.NASKeySetId{Tsc: ie.SecCtxTypeNative},
+		// This spelling is the name exported by the NAS API.
+		SvcType: &ie.SvcType{Value: ie.SvcType_Signalling}, //nolint:misspell
 		TMSI5GS: &ie.MobileId5GS{TypeOfId: ie.IdType_5GS_TMSI},
 	})
 	f.Add(append([]byte{

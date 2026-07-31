@@ -8,7 +8,6 @@ import (
 	business_metrics "github.com/free5gc/amf/internal/metrics/business"
 	callback "github.com/free5gc/amf/internal/sbi/processor/notifier"
 	"github.com/free5gc/ngap/aper"
-	ngapIE "github.com/free5gc/ngap/ie"
 	ngapType "github.com/free5gc/ngap/ie"
 	"github.com/free5gc/openapi/models"
 	ngap_metrics "github.com/free5gc/util/metrics/ngap"
@@ -210,7 +209,7 @@ func SendDownlinkNasTransport(ue *context.RanUe, nasPdu []byte,
 }
 
 func SendPDUSessionResourceReleaseCommand(ue *context.RanUe, nasPdu []byte,
-	pduSessionResourceReleasedList ngapIE.PDUSessionResourceToReleaseListRelCmd,
+	pduSessionResourceReleasedList ngapType.PDUSessionResourceToReleaseListRelCmd,
 ) {
 	isPDUSessResRelCmdSent := false
 	additionalCause := ""

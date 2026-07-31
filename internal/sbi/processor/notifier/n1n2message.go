@@ -199,7 +199,9 @@ func SendN2InfoNotify(ue *amf_context.AmfUe, n2class models.Amf_Comm_N2Informati
 						},
 					},
 				}
-			case models.Amf_Comm_N2InformationClass_PWS, models.Amf_Comm_N2InformationClass_PWS_BCAL, models.Amf_Comm_N2InformationClass_PWS_RF:
+			case models.Amf_Comm_N2InformationClass_PWS,
+				models.Amf_Comm_N2InformationClass_PWS_BCAL,
+				models.Amf_Comm_N2InformationClass_PWS_RF:
 				n2InformationNotify.JsonData.N2InfoContainer.PwsInfo = &models.Amf_Comm_PwsInformation{
 					PwsContainer: &models.Amf_Comm_N2InfoContent{
 						NgapData: &models.RefToBinaryData{

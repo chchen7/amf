@@ -28,7 +28,9 @@ func marshal(msg message.Message) []byte {
 
 func psiFromBytes(data []byte) ie.Psi {
 	var psi ie.Psi
-	_ = psi.UnmarshalBinary(data)
+	if err := psi.UnmarshalBinary(data); err != nil {
+		return ie.Psi{}
+	}
 	return psi
 }
 
@@ -224,8 +226,10 @@ func GetRegistrationComplete(sorTransparentContainer []uint8) []byte {
 	}
 	// SORTransparentCntr is not yet structurally decoded by the new NAS IE package.
 	// Preserve the caller-provided transparent bytes in their wire representation.
-	data := []byte{byte(message.Epd5GSMobilityMgmtMsg), 0, byte(message.MsgTypeRegComplete), 0x73,
-		byte(len(sorTransparentContainer) >> 8), byte(len(sorTransparentContainer))}
+	data := []byte{
+		byte(message.Epd5GSMobilityMgmtMsg), 0, byte(message.MsgTypeRegComplete), 0x73,
+		byte(len(sorTransparentContainer) >> 8), byte(len(sorTransparentContainer)),
+	}
 	return append(data, sorTransparentContainer...)
 }
 

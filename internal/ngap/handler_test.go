@@ -216,7 +216,7 @@ func TestHandleInitialUEMessage(t *testing.T) {
 			require.Equal(t, ranUeNgapID, pair.RANUENGAPID.Value)
 			cause, ok := release.Cause.Choice.(*ngapType.CauseNas)
 			require.True(t, ok)
-			require.Equal(t, aper.Enumerated(ngapType.CauseNasPresentNormalRelease), cause.Value)
+			require.Equal(t, ngapType.CauseNasPresentNormalRelease, cause.Value)
 		})
 	}
 }

@@ -62,7 +62,7 @@ type AMFContext struct {
 	RelativeCapacity             int64
 	NfId                         string
 	Name                         string
-	NfService                    map[models.Nrf_NFMgmt_ServiceName]models.Nrf_NFMgmt_NFService // nfservice that amf support
+	NfService                    map[models.Nrf_NFMgmt_ServiceName]models.Nrf_NFMgmt_NFService
 	UriScheme                    models.UriScheme
 	BindingIPv4                  string
 	SBIPort                      int

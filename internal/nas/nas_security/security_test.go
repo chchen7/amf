@@ -43,8 +43,9 @@ func TestDecodeIntegrityProtectedServiceRequest(t *testing.T) {
 		ue.KnasInt[:],
 	)
 	serviceRequest := &message.SvcReq{
-		Ngksi:   &ie.NASKeySetId{Tsc: ie.SecCtxTypeNative, Ksi: 1},
-		SvcType: &ie.SvcType{Value: ie.SvcType_Signalling},
+		Ngksi: &ie.NASKeySetId{Tsc: ie.SecCtxTypeNative, Ksi: 1},
+		// This spelling is the name exported by the NAS API.
+		SvcType: &ie.SvcType{Value: ie.SvcType_Signalling}, //nolint:misspell
 		TMSI5GS: &ie.MobileId5GS{
 			TypeOfId: ie.IdType_5GS_TMSI,
 			TMSI5G:   [4]byte{0, 0, 0, 1},

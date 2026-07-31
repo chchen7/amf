@@ -34,7 +34,9 @@ func (p *Processor) HandleCreateAMFEventSubscription(c *gin.Context,
 }
 
 // TODO: handle event filter
-func (p *Processor) CreateAMFEventSubscriptionProcedure(createEventSubscription models.Amf_EvtExpos_AmfCreateEventSubscription) (
+func (p *Processor) CreateAMFEventSubscriptionProcedure(
+	createEventSubscription models.Amf_EvtExpos_AmfCreateEventSubscription,
+) (
 	*models.Amf_EvtExpos_AmfCreatedEventSubscription, *models.ProblemDetails,
 ) {
 	amfSelf := context.GetSelf()
@@ -432,7 +434,11 @@ func (p *Processor) subReports(ue *context.AmfUe, subscriptionId string) {
 }
 
 // DO NOT handle AmfEventType_PRESENCE_IN_AOI_REPORT and AmfEventType_UES_IN_AREA_REPORT(about area)
-func (p *Processor) newAmfEventReport(ue *context.AmfUe, amfEventType models.Amf_EvtExpos_AmfEventType, subscriptionId string) (
+func (p *Processor) newAmfEventReport(
+	ue *context.AmfUe,
+	amfEventType models.Amf_EvtExpos_AmfEventType,
+	subscriptionId string,
+) (
 	report models.Amf_EvtExpos_AmfEventReport, ok bool,
 ) {
 	ueSubscription, ok := ue.EventSubscriptionsInfo[subscriptionId]

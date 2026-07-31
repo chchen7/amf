@@ -1316,18 +1316,13 @@ func handlePathSwitchRequestMain(ran *context.AmfRan,
 
 	if uESecurityCapabilities != nil {
 		amfUe.UESecurityCapability.Length = 2
-		amfUe.UESecurityCapability.EA1_128_5G =
-			uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0]&0x80 != 0
-		amfUe.UESecurityCapability.EA2_128_5G =
-			uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0]&0x40 != 0
-		amfUe.UESecurityCapability.EA3_128_5G =
-			uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0]&0x20 != 0
-		amfUe.UESecurityCapability.IA1_128_5G =
-			uESecurityCapabilities.NRintegrityProtectionAlgorithms.Value.Bytes[0]&0x80 != 0
-		amfUe.UESecurityCapability.IA2_128_5G =
-			uESecurityCapabilities.NRintegrityProtectionAlgorithms.Value.Bytes[0]&0x40 != 0
-		amfUe.UESecurityCapability.IA3_128_5G =
-			uESecurityCapabilities.NRintegrityProtectionAlgorithms.Value.Bytes[0]&0x20 != 0
+		amfUe.UESecurityCapability.EA1_128_5G = uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0]&0x80 != 0
+		amfUe.UESecurityCapability.EA2_128_5G = uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0]&0x40 != 0
+		amfUe.UESecurityCapability.EA3_128_5G = uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0]&0x20 != 0
+		integrityAlgorithms := uESecurityCapabilities.NRintegrityProtectionAlgorithms.Value.Bytes[0]
+		amfUe.UESecurityCapability.IA1_128_5G = integrityAlgorithms&0x80 != 0
+		amfUe.UESecurityCapability.IA2_128_5G = integrityAlgorithms&0x40 != 0
+		amfUe.UESecurityCapability.IA3_128_5G = integrityAlgorithms&0x20 != 0
 		// not support any E-UTRA algorithms
 	}
 

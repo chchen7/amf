@@ -69,8 +69,15 @@ func handleDecodeError(ran *context.AmfRan, decoded ngapMessage.Message, decodeE
 	case errors.As(decodeErr, &transferSyntaxErr):
 		cause = transferSyntaxErr.GetCause()
 	case errors.As(decodeErr, &abstractSyntaxErr):
-		cause, _ = abstractSyntaxErr.GetCause()
-		criticalityDiagnostics, _ = abstractSyntaxErr.GetCritDiag(true)
+		var err error
+		cause, err = abstractSyntaxErr.GetCause()
+		if err != nil {
+			ran.Log.Warnf("Failed to derive cause from NGAP decode error: %v", err)
+		}
+		criticalityDiagnostics, err = abstractSyntaxErr.GetCritDiag(true)
+		if err != nil {
+			ran.Log.Warnf("Failed to derive criticality diagnostics from NGAP decode error: %v", err)
+		}
 	default:
 		return
 	}

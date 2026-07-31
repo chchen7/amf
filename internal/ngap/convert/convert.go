@@ -266,7 +266,9 @@ func RanIDToNgap(value models.GlobalRanNodeId) (ie.GlobalRANNodeID, error) {
 		case strings.HasPrefix(value.NgeNbId, "MacroNGeNB-"):
 			choice = &ie.MacroNgENBIDForNgENBID{Value: HexToBitString(strings.TrimPrefix(value.NgeNbId, "MacroNGeNB-"), 20)}
 		case strings.HasPrefix(value.NgeNbId, "SMacroNGeNB-"):
-			choice = &ie.ShortMacroNgENBIDForNgENBID{Value: HexToBitString(strings.TrimPrefix(value.NgeNbId, "SMacroNGeNB-"), 18)}
+			choice = &ie.ShortMacroNgENBIDForNgENBID{
+				Value: HexToBitString(strings.TrimPrefix(value.NgeNbId, "SMacroNGeNB-"), 18),
+			}
 		case strings.HasPrefix(value.NgeNbId, "LMacroNGeNB-"):
 			choice = &ie.LongMacroNgENBIDForNgENBID{Value: HexToBitString(strings.TrimPrefix(value.NgeNbId, "LMacroNGeNB-"), 21)}
 		default:
@@ -300,7 +302,7 @@ func TraceDataToNgap(value models.TraceData, sessionReference string) ie.TraceAc
 		return result
 	}
 	result.NGRANTraceID = &ie.NGRANTraceID{Value: append(plmn.Value, traceID...)}
-	if interfaces, err := hex.DecodeString(value.InterfaceList); err == nil {
+	if interfaces, interfaceErr := hex.DecodeString(value.InterfaceList); interfaceErr == nil {
 		result.InterfacesToTrace = &ie.InterfacesToTrace{
 			Value: aper.BitString{Bytes: interfaces, BitLength: 8},
 		}

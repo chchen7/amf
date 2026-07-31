@@ -291,8 +291,8 @@ func (s *nnrfService) SendRegisterNFInstance(ctx context.Context, nrfUri, nfInst
 
 				oauth2 := false
 				if customInfo, ok := nf.CustomInfo.(map[string]interface{}); ok {
-					v, ok := customInfo["oauth2"].(bool)
-					if ok {
+					v, isBool := customInfo["oauth2"].(bool)
+					if isBool {
 						oauth2 = v
 						logger.MainLog.Infoln("OAuth2 setting receive from NRF:", oauth2)
 					}

@@ -431,7 +431,10 @@ func (ue *AmfUe) InSubscribedNssai(targetSNssai models.Snssai) bool {
 	return false
 }
 
-func (ue *AmfUe) GetNsiInformationFromSnssai(anType models.AccessType, snssai models.Snssai) *models.Nssf_NSSel_NsiInformation {
+func (ue *AmfUe) GetNsiInformationFromSnssai(
+	anType models.AccessType,
+	snssai models.Snssai,
+) *models.Nssf_NSSel_NsiInformation {
 	for _, allowedSnssai := range ue.AllowedNssai[anType] {
 		if openapi.SnssaiEqualFold(*allowedSnssai.AllowedSnssai, snssai) {
 			// TODO: select NsiInformation based on operator policy

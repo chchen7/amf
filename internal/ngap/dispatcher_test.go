@@ -39,6 +39,6 @@ func TestHandleDecodeErrorSendsErrorIndication(t *testing.T) {
 	require.Equal(t, int64(22), errorIndication.RANUENGAPID.Value)
 	cause, ok := errorIndication.Cause.Choice.(*ie.CauseProtocol)
 	require.True(t, ok)
-	require.Equal(t, aper.Enumerated(ie.CauseProtocolPresentAbstractSyntaxErrorReject), cause.Value)
+	require.Equal(t, ie.CauseProtocolPresentAbstractSyntaxErrorReject, cause.Value)
 	require.NotNil(t, errorIndication.CriticalityDiagnostics)
 }

@@ -41,7 +41,10 @@ func (s *nssfService) getNSSelectionClient(uri string) *Nnssf_NSSelection.APICli
 	return client
 }
 
-func (s *nssfService) NSSelectionGetForRegistration(ue *amf_context.AmfUe, requestedNssai []models.Nssf_NSSel_MappingOfSnssai) (
+func (s *nssfService) NSSelectionGetForRegistration(
+	ue *amf_context.AmfUe,
+	requestedNssai []models.Nssf_NSSel_MappingOfSnssai,
+) (
 	*models.ProblemDetails, error,
 ) {
 	client := s.getNSSelectionClient(ue.NssfUri)

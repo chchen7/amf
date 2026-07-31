@@ -13,7 +13,6 @@ import (
 	callback "github.com/free5gc/amf/internal/sbi/processor/notifier"
 	"github.com/free5gc/nas/ie"
 	"github.com/free5gc/ngap/aper"
-	ngapIE "github.com/free5gc/ngap/ie"
 	ngapType "github.com/free5gc/ngap/ie"
 	"github.com/free5gc/openapi/mediatype/multipart"
 	"github.com/free5gc/openapi/models"
@@ -272,7 +271,7 @@ func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri stri
 				return n1n2MessageTransferRspData, "", nil, nil
 			case models.Amf_Comm_NgapIeType_PDU_RES_REL_CMD:
 				ue.ProducerLog.Debugln("AMF Transfer NGAP PDU Session Resource Release Command from SMF")
-				list := ngapIE.PDUSessionResourceToReleaseListRelCmd{}
+				list := ngapType.PDUSessionResourceToReleaseListRelCmd{}
 				ngap_message.AppendPDUSessionResourceToReleaseListRelCmd(&list, smInfo.PduSessionId, n2Info)
 				ngap_message.SendPDUSessionResourceReleaseCommand(ue.RanUe[anType], nasPdu, list)
 				n1n2MessageTransferRspData = new(models.Amf_Comm_N1N2MessageTransferRspData)

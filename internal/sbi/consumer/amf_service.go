@@ -153,7 +153,10 @@ func (s *namfService) buildAmPolicyReqTriggers(
 	return
 }
 
-func (s *namfService) CreateUEContextRequest(ue *amf_context.AmfUe, ueContextCreateData models.Amf_Comm_UeContextCreateData) (
+func (s *namfService) CreateUEContextRequest(
+	ue *amf_context.AmfUe,
+	ueContextCreateData models.Amf_Comm_UeContextCreateData,
+) (
 	ueContextCreatedData *models.Amf_Comm_UeContextCreatedData, problemDetails *models.ProblemDetails, err error,
 ) {
 	client := s.getComClient(ue.TargetAmfUri)
@@ -274,7 +277,8 @@ func (s *namfService) UEContextTransferRequest(
 	req := models.UEContextTransferRequestBody{
 		JsonData: &ueContextTransferReqData,
 	}
-	if transferReason == models.Amf_Comm_TransferReason_INIT_REG || transferReason == models.Amf_Comm_TransferReason_MOBI_REG {
+	if transferReason == models.Amf_Comm_TransferReason_INIT_REG ||
+		transferReason == models.Amf_Comm_TransferReason_MOBI_REG {
 		ueContextTransferReqData.RegRequest = &models.Amf_Comm_N1MessageContainer{
 			N1MessageClass: models.Amf_Comm_N1MessageClass_5_GMM,
 			N1MessageContent: &models.RefToBinaryData{
@@ -340,7 +344,10 @@ func (s *namfService) UEContextTransferRequest(
 	return ueContextTransferRspData, problemDetails, err
 }
 
-func (s *namfService) RegistrationStatusUpdate(ue *amf_context.AmfUe, request models.Amf_Comm_UeRegStatusUpdateReqData) (
+func (s *namfService) RegistrationStatusUpdate(
+	ue *amf_context.AmfUe,
+	request models.Amf_Comm_UeRegStatusUpdateReqData,
+) (
 	regStatusTransferComplete bool, problemDetails *models.ProblemDetails, err error,
 ) {
 	client := s.getComClient(ue.TargetAmfUri)
