@@ -1748,7 +1748,10 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 	ue.StopT3565()
 
 	amfSelf := context.GetSelf()
-
+	if ue.RanUe[anType] != nil {
+		ue.Location = ue.RanUe[anType].Location
+		ue.Tai = ue.RanUe[anType].Tai
+	}
 	// Check TAI
 	if !context.InTaiList(ue.Tai, amfSelf.SupportTaiLists) {
 		ue.GmmLog.Warnf("Service Request rejected: UE TAI %v is not in AMF SupportTaiLists", ue.Tai)
