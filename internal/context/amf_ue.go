@@ -1007,13 +1007,20 @@ func (ue *AmfUe) CheckSliceAvailabilityInCurrentRan(targetSnssai models.Snssai, 
 		ue.GmmLog.Warn("CheckSliceAvailabilityInCurrentRan: RanUe or Ran is nil")
 		return false
 	}
-	ran := ue.RanUe[anType].Ran
-	currentTai := ue.Tai
 
-	return ue.CheckSliceAvailabilityInTargetRan(targetSnssai, ran, currentTai)
+	return ue.CheckSliceAvailabilityInRan(targetSnssai, ue.RanUe[anType].Ran, ue.Tai)
 }
 
-func (ue *AmfUe) CheckSliceAvailabilityInTargetRan(targetSnssai models.Snssai, ran *AmfRan, targetTai models.Tai) bool {
+func (ue *AmfUe) CheckSliceAvailabilityInTargetRan(targetSnssai models.Snssai, targetRan *AmfRan, targetTai models.Tai) bool {
+	return ue.CheckSliceAvailabilityInRan(targetSnssai, targetRan, targetTai)
+}
+
+func (ue *AmfUe) CheckSliceAvailabilityInRan(targetSnssai models.Snssai, ran *AmfRan, targetTai models.Tai) bool {
+	if ran == nil {
+		ue.GmmLog.Warn("CheckSliceAvailabilityInRan: Ran is nil")
+		return false
+	}
+
 	for _, taiItem := range ran.SupportedTAList {
 		if taiItem.Tai.Tac == targetTai.Tac &&
 			taiItem.Tai.PlmnId.Mcc == targetTai.PlmnId.Mcc &&
