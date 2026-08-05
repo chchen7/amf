@@ -641,8 +641,7 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 		return err
 	}
 	if len(ue.AllowedNssai[anType]) == 0 {
-		const CauseNoNetworkSlicesAvailable uint8 = 0x3e
-		gmm_message.SendRegistrationReject(ue.RanUe[anType], CauseNoNetworkSlicesAvailable, "")
+		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMNoNetworkSlicesAvailable, "")
 		return fmt.Errorf("no allowed NSSAI for UE")
 	}
 
@@ -856,8 +855,7 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ue *context.AmfUe, anType mod
 			return true
 		})
 		if len(ue.AllowedNssai[anType]) == 0 {
-			const CauseNoNetworkSlicesAvailable uint8 = 0x3e
-			gmm_message.SendRegistrationReject(ue.RanUe[anType], CauseNoNetworkSlicesAvailable, "")
+			gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMNoNetworkSlicesAvailable, "")
 			return fmt.Errorf("no allowed NSSAI for UE at new TAI")
 		}
 	}

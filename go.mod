@@ -6,7 +6,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2
 	github.com/davecgh/go-spew v1.1.1
 	github.com/free5gc/aper v1.1.1
-	github.com/free5gc/nas v1.2.3
+	github.com/free5gc/nas v1.2.4-0.20260707010827-03622ac0336e
 	github.com/free5gc/ngap v1.1.3
 	github.com/free5gc/openapi v1.2.5-0.20260527003827-02dc71b4d94f
 	github.com/free5gc/sctp v1.1.2
