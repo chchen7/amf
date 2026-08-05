@@ -1167,6 +1167,11 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType) error {
 
 		needSliceSelection := false
 		for _, requestedSnssai := range requestedNssai {
+			if requestedSnssai.ServingSnssai == nil {
+				ue.GmmLog.Warn("RequestedNssai has nil ServingSnssai")
+				needSliceSelection = true
+				continue
+			}
 			ue.GmmLog.Infof("RequestedNssai - ServingSnssai: %+v, HomeSnssai: %+v",
 				requestedSnssai.ServingSnssai, requestedSnssai.HomeSnssai)
 			isSupported := ue.CheckSliceAvailabilityInCurrentRan(*requestedSnssai.ServingSnssai, anType)
@@ -1326,6 +1331,10 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType) error {
 	// then use ue subscribed snssai which is marked as default as allowed nssai
 	if len(ue.AllowedNssai[anType]) == 0 {
 		for _, snssai := range ue.SubscribedNssai {
+			if snssai.SubscribedSnssai == nil {
+				logger.GmmLog.Warn("SubscribedNssai has nil SubscribedSnssai")
+				continue
+			}
 			if snssai.DefaultIndication {
 				isSupported := ue.CheckSliceAvailabilityInCurrentRan(*snssai.SubscribedSnssai, anType)
 				if !isSupported {
