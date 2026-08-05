@@ -1011,7 +1011,11 @@ func (ue *AmfUe) CheckSliceAvailabilityInCurrentRan(targetSnssai models.Snssai, 
 	return ue.CheckSliceAvailabilityInRan(targetSnssai, ue.RanUe[anType].Ran, ue.Tai)
 }
 
-func (ue *AmfUe) CheckSliceAvailabilityInTargetRan(targetSnssai models.Snssai, targetRan *AmfRan, targetTai models.Tai) bool {
+func (ue *AmfUe) CheckSliceAvailabilityInTargetRan(
+	targetSnssai models.Snssai,
+	targetRan *AmfRan,
+	targetTai models.Tai,
+) bool {
 	return ue.CheckSliceAvailabilityInRan(targetSnssai, targetRan, targetTai)
 }
 
