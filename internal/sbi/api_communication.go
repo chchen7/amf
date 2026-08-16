@@ -342,6 +342,8 @@ func (s *Server) HTTPUEContextTransfer(c *gin.Context) {
 		err = openapi.Deserialize(ueContextTransferRequest.JsonData, requestBody, contentType)
 	case multipartrelate:
 		err = openapi.Deserialize(&ueContextTransferRequest, requestBody, contentType)
+	default:
+		err = fmt.Errorf("wrong content type")
 	}
 
 	if err != nil {
