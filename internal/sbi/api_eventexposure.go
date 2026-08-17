@@ -66,14 +66,15 @@ func (s *Server) HTTPModifySubscription(c *gin.Context) {
 
 	err = openapi.Deserialize(&modifySubscriptionRequest, requestBody, "application/json")
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		logger.EeLog.Errorf("%s%+v", reqbody, err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "The request body is malformed or does not match the expected schema.",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
-		logger.EeLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
@@ -99,14 +100,15 @@ func (s *Server) HTTPCreateSubscription(c *gin.Context) {
 
 	err = openapi.Deserialize(&createEventSubscription, requestBody, "application/json")
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		logger.EeLog.Errorf("%s%+v", reqbody, err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "The request body is malformed or does not match the expected schema.",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
-		logger.EeLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
