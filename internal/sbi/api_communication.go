@@ -151,7 +151,7 @@ func (s *Server) HTTPAMFStatusChangeSubscribeModify(c *gin.Context) {
 
 	err = openapi.Deserialize(&subscriptionData, requestBody, applicationjson)
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
@@ -200,7 +200,7 @@ func (s *Server) HTTPCreateUEContext(c *gin.Context) {
 	}
 
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
@@ -234,7 +234,7 @@ func (s *Server) HTTPEBIAssignment(c *gin.Context) {
 
 	err = openapi.Deserialize(&assignEbiData, requestBody, applicationjson)
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
@@ -268,7 +268,7 @@ func (s *Server) HTTPRegistrationStatusUpdate(c *gin.Context) {
 
 	err = openapi.Deserialize(&ueRegStatusUpdateReqData, requestBody, applicationjson)
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
@@ -302,7 +302,7 @@ func (s *Server) HTTPReleaseUEContext(c *gin.Context) {
 
 	err = openapi.Deserialize(&ueContextRelease, requestBody, applicationjson)
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
@@ -345,7 +345,7 @@ func (s *Server) HTTPUEContextTransfer(c *gin.Context) {
 	}
 
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
@@ -401,7 +401,7 @@ func (s *Server) HTTPN1N2MessageTransfer(c *gin.Context) {
 	}
 
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
@@ -438,7 +438,7 @@ func (s *Server) HTTPN1N2MessageSubscribe(c *gin.Context) {
 
 	err = openapi.Deserialize(&ueN1N2InfoSubscriptionCreateData, requestBody, applicationjson)
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
@@ -486,7 +486,7 @@ func (s *Server) HTTPAMFStatusChangeSubscribe(c *gin.Context) {
 
 	err = openapi.Deserialize(&subscriptionData, requestBody, applicationjson)
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
