@@ -7,14 +7,14 @@ import (
 	"github.com/free5gc/amf/internal/logger"
 	business_metrics "github.com/free5gc/amf/internal/metrics/business"
 	callback "github.com/free5gc/amf/internal/sbi/processor/notifier"
-	"github.com/free5gc/aper"
-	"github.com/free5gc/ngap/ngapType"
+	"github.com/free5gc/ngap/aper"
+	ngapType "github.com/free5gc/ngap/ie"
 	"github.com/free5gc/openapi/models"
 	ngap_metrics "github.com/free5gc/util/metrics/ngap"
 	"github.com/free5gc/util/metrics/utils"
 )
 
-var emptyCause = ngapType.Cause{Present: 0}
+var emptyCause = ngapType.Cause{}
 
 func SendToRan(ran *context.AmfRan, packet []byte) (bool, string) {
 	defer func() {
@@ -120,7 +120,7 @@ func SendNGSetupFailure(
 
 	ran.Log.Info("Send NG-Setup failure")
 
-	if cause.Present == ngapType.CausePresentNothing {
+	if cause.Choice == nil {
 		additionalCause = ngap_metrics.CAUSE_NIL_ERR
 		ran.Log.Errorf("Cause present is nil")
 		return
@@ -465,7 +465,7 @@ func SendInitialContextSetupRequest(
 	nasPdu []byte,
 	pduSessionResourceSetupRequestList *ngapType.PDUSessionResourceSetupListCxtReq,
 	rrcInactiveTransitionReportRequest *ngapType.RRCInactiveTransitionReportRequest,
-	coreNetworkAssistanceInfo *ngapType.CoreNetworkAssistanceInformation,
+	coreNetworkAssistanceInfo *ngapType.CoreNetworkAssistanceInformationForInactive,
 	emergencyFallbackIndicator *ngapType.EmergencyFallbackIndicator,
 ) {
 	isInitialCtxSetupReqSent := false
@@ -505,7 +505,7 @@ func SendUEContextModificationRequest(
 	anType models.AccessType,
 	oldAmfUeNgapID *int64,
 	rrcInactiveTransitionReportRequest *ngapType.RRCInactiveTransitionReportRequest,
-	coreNetworkAssistanceInfo *ngapType.CoreNetworkAssistanceInformation,
+	coreNetworkAssistanceInfo *ngapType.CoreNetworkAssistanceInformationForInactive,
 	mobilityRestrictionList *ngapType.MobilityRestrictionList,
 	emergencyFallbackIndicator *ngapType.EmergencyFallbackIndicator,
 ) {
@@ -721,7 +721,7 @@ func SendPathSwitchRequestAcknowledge(
 	pduSessionResourceSwitchedList ngapType.PDUSessionResourceSwitchedList,
 	pduSessionResourceReleasedList ngapType.PDUSessionResourceReleasedListPSAck,
 	newSecurityContextIndicator bool,
-	coreNetworkAssistanceInformation *ngapType.CoreNetworkAssistanceInformation,
+	coreNetworkAssistanceInformation *ngapType.CoreNetworkAssistanceInformationForInactive,
 	rrcInactiveTransitionReportRequest *ngapType.RRCInactiveTransitionReportRequest,
 	criticalityDiagnostics *ngapType.CriticalityDiagnostics,
 	hoStartTime time.Time,
@@ -862,7 +862,7 @@ func SendPaging(ue *context.AmfUe, ngapBuf []byte) {
 	// if err != nil {
 	// 	ngaplog.Errorf("Build Paging failed : %s", err.Error())
 	// }
-	taiList := ue.RegistrationArea[models.AccessType__3_GPP_ACCESS]
+	taiList := ue.RegistrationArea[models.AccessType_3_GPP_ACCESS]
 	context.GetSelf().AmfRanPool.Range(func(key, value interface{}) bool {
 		ran := value.(*context.AmfRan)
 		for _, item := range ran.SupportedTAList {
@@ -893,8 +893,8 @@ func SendPaging(ue *context.AmfUe, ngapBuf []byte) {
 		}, func() {
 			ue.GmmLog.Warnf("T3513 expires %d times, abort paging procedure", cfg.MaxRetryTimes)
 			ue.T3513 = nil // clear the timer
-			if ue.OnGoing(models.AccessType__3_GPP_ACCESS).Procedure != context.OnGoingProcedureN2Handover {
-				callback.SendN1N2TransferFailureNotification(ue, models.N1N2MessageTransferCause_UE_NOT_RESPONDING)
+			if ue.OnGoing(models.AccessType_3_GPP_ACCESS).Procedure != context.OnGoingProcedureN2Handover {
+				callback.SendN1N2TransferFailureNotification(ue, models.Amf_Comm_N1N2MessageTransferCause_UE_NOT_RESPONDING)
 			}
 		})
 	}
@@ -1324,7 +1324,7 @@ func SendN2Message(
 	nasPdu []byte,
 	pduSessionResourceSetupRequestList *ngapType.PDUSessionResourceSetupListCxtReq,
 	rrcInactiveTransitionReportRequest *ngapType.RRCInactiveTransitionReportRequest,
-	coreNetworkAssistanceInfo *ngapType.CoreNetworkAssistanceInformation,
+	coreNetworkAssistanceInfo *ngapType.CoreNetworkAssistanceInformationForInactive,
 	emergencyFallbackIndicator *ngapType.EmergencyFallbackIndicator,
 	mobilityRestrictionList *ngapType.MobilityRestrictionList,
 ) {

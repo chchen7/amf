@@ -9,7 +9,7 @@ import (
 	"github.com/free5gc/amf/pkg/factory"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
-	Npcf_AMPolicy "github.com/free5gc/openapi/pcf/AMPolicyControl"
+	Npcf_AMPolicy "github.com/free5gc/openapi/pcf/AMPolCtrl"
 	sbi_metrics "github.com/free5gc/util/metrics/sbi"
 )
 
@@ -52,13 +52,13 @@ func (s *npcfService) AMPolicyControlCreate(
 		return nil, openapi.ReportError("pcf not found")
 	}
 	amfSelf := amf_context.GetSelf()
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NPCF_AM_POLICY_CONTROL,
-		models.NrfNfManagementNfType_PCF)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NPCF_AM_POLICY_CONTROL,
+		models.Nrf_NFMgmt_NFType_PCF)
 	if err != nil {
 		return nil, err
 	}
 
-	policyAssociationRequest := models.PcfAmPolicyControlPolicyAssociationRequest{
+	policyAssociationRequest := models.Pcf_AMPolCtrl_PolicyAssociationRequest{
 		NotificationUri: amfSelf.GetIPv4Uri() + factory.AmfCallbackResUriPrefix + "/am-policy/",
 		Supi:            ue.Supi,
 		Pei:             ue.Pei,
@@ -73,7 +73,7 @@ func (s *npcfService) AMPolicyControlCreate(
 	}
 	var policyAssociationreq Npcf_AMPolicy.CreateIndividualAMPolicyAssociationRequest
 
-	policyAssociationreq.SetPcfAmPolicyControlPolicyAssociationRequest(policyAssociationRequest)
+	policyAssociationreq.SetRequestBody(policyAssociationRequest)
 
 	if ue.AccessAndMobilitySubscriptionData != nil {
 		policyAssociationRequest.Rfsp = ue.AccessAndMobilitySubscriptionData.RfspIndex
@@ -90,11 +90,11 @@ func (s *npcfService) AMPolicyControlCreate(
 		match := re.FindStringSubmatch(locationHeader)
 
 		ue.PolicyAssociationId = match[0][10:]
-		ue.AmPolicyAssociation = &res.PcfAmPolicyControlPolicyAssociation
+		ue.AmPolicyAssociation = res.Pcf_AMPolCtrl_PolicyAssociation
 
-		if res.PcfAmPolicyControlPolicyAssociation.Triggers != nil {
-			for _, trigger := range res.PcfAmPolicyControlPolicyAssociation.Triggers {
-				if trigger == models.PcfAmPolicyControlRequestTrigger_LOC_CH {
+		if res.Pcf_AMPolCtrl_PolicyAssociation.Triggers != nil {
+			for _, trigger := range res.Pcf_AMPolCtrl_PolicyAssociation.Triggers {
+				if trigger == models.Pcf_AMPolCtrl_RequestTrigger_LOC_CH {
 					ue.RequestTriggerLocationChange = true
 				}
 				// if trigger == models.RequestTrigger_PRA_CH {
@@ -111,7 +111,7 @@ func (s *npcfService) AMPolicyControlCreate(
 		case openapi.GenericOpenAPIError:
 			switch errorModel := apiErr.Model().(type) {
 			case Npcf_AMPolicy.CreateIndividualAMPolicyAssociationError:
-				return &errorModel.ProblemDetails, nil
+				return errorModel.ProblemDetails, nil
 			case error:
 				return openapi.ProblemDetailsSystemFailure(errorModel.Error()), nil
 			default:
@@ -127,15 +127,15 @@ func (s *npcfService) AMPolicyControlCreate(
 }
 
 func (s *npcfService) AMPolicyControlUpdate(
-	ue *amf_context.AmfUe, updateRequest models.PcfAmPolicyControlPolicyAssociationUpdateRequest,
+	ue *amf_context.AmfUe, updateRequest models.Pcf_AMPolCtrl_PolicyAssociationUpdateRequest,
 ) (problemDetails *models.ProblemDetails, err error) {
 	client := s.getAMPolicyClient(ue.PcfUri)
 	if client == nil {
 		return nil, openapi.ReportError("pcf not found")
 	}
 
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NPCF_AM_POLICY_CONTROL,
-		models.NrfNfManagementNfType_PCF)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NPCF_AM_POLICY_CONTROL,
+		models.Nrf_NFMgmt_NFType_PCF)
 	if err != nil {
 		return nil, err
 	}
@@ -143,21 +143,21 @@ func (s *npcfService) AMPolicyControlUpdate(
 	var policyUpdateReq Npcf_AMPolicy.ReportObservedEventTriggersForIndividualAMPolicyAssociationRequest
 
 	policyUpdateReq.SetPolAssoId(ue.PolicyAssociationId)
-	policyUpdateReq.SetPcfAmPolicyControlPolicyAssociationUpdateRequest(updateRequest)
+	policyUpdateReq.SetRequestBody(updateRequest)
 
 	res, localErr := client.IndividualAMPolicyAssociationDocumentApi.
 		ReportObservedEventTriggersForIndividualAMPolicyAssociation(ctx, &policyUpdateReq)
 	if localErr == nil {
-		if res.PcfAmPolicyControlPolicyUpdate.ServAreaRes != nil {
-			ue.AmPolicyAssociation.ServAreaRes = res.PcfAmPolicyControlPolicyUpdate.ServAreaRes
+		if res.Pcf_AMPolCtrl_PolicyUpdate.ServAreaRes != nil {
+			ue.AmPolicyAssociation.ServAreaRes = res.Pcf_AMPolCtrl_PolicyUpdate.ServAreaRes
 		}
-		if res.PcfAmPolicyControlPolicyUpdate.Rfsp != 0 {
-			ue.AmPolicyAssociation.Rfsp = res.PcfAmPolicyControlPolicyUpdate.Rfsp
+		if res.Pcf_AMPolCtrl_PolicyUpdate.Rfsp != 0 {
+			ue.AmPolicyAssociation.Rfsp = res.Pcf_AMPolCtrl_PolicyUpdate.Rfsp
 		}
-		ue.AmPolicyAssociation.Triggers = res.PcfAmPolicyControlPolicyUpdate.Triggers
+		ue.AmPolicyAssociation.Triggers = res.Pcf_AMPolCtrl_PolicyUpdate.Triggers
 		ue.RequestTriggerLocationChange = false
-		for _, trigger := range res.PcfAmPolicyControlPolicyUpdate.Triggers {
-			if trigger == models.PcfAmPolicyControlRequestTrigger_LOC_CH {
+		for _, trigger := range res.Pcf_AMPolCtrl_PolicyUpdate.Triggers {
+			if trigger == models.Pcf_AMPolCtrl_RequestTrigger_LOC_CH {
 				ue.RequestTriggerLocationChange = true
 			}
 			// if trigger == models.RequestTrigger_PRA_CH {
@@ -170,7 +170,7 @@ func (s *npcfService) AMPolicyControlUpdate(
 		case openapi.GenericOpenAPIError:
 			switch errorModel := apiErr.Model().(type) {
 			case Npcf_AMPolicy.ReportObservedEventTriggersForIndividualAMPolicyAssociationError:
-				return &errorModel.ProblemDetails, nil
+				return errorModel.ProblemDetails, nil
 			case error:
 				return openapi.ProblemDetailsSystemFailure(errorModel.Error()), nil
 			default:
@@ -191,8 +191,8 @@ func (s *npcfService) AMPolicyControlDelete(ue *amf_context.AmfUe) (problemDetai
 		return nil, openapi.ReportError("pcf not found")
 	}
 
-	ctx, _, ctxErr := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NPCF_AM_POLICY_CONTROL,
-		models.NrfNfManagementNfType_PCF)
+	ctx, _, ctxErr := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NPCF_AM_POLICY_CONTROL,
+		models.Nrf_NFMgmt_NFType_PCF)
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
@@ -209,7 +209,7 @@ func (s *npcfService) AMPolicyControlDelete(ue *amf_context.AmfUe) (problemDetai
 		case openapi.GenericOpenAPIError:
 			switch errorModel := apiErr.Model().(type) {
 			case Npcf_AMPolicy.DeleteIndividualAMPolicyAssociationError:
-				return &errorModel.ProblemDetails, nil
+				return errorModel.ProblemDetails, nil
 			case error:
 				return openapi.ProblemDetailsSystemFailure(errorModel.Error()), nil
 			default:

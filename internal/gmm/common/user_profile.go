@@ -6,7 +6,7 @@ import (
 	business_metrics "github.com/free5gc/amf/internal/metrics/business"
 	ngap_message "github.com/free5gc/amf/internal/ngap/message"
 	"github.com/free5gc/amf/internal/sbi/consumer"
-	"github.com/free5gc/ngap/ngapType"
+	ngapType "github.com/free5gc/ngap/ie"
 	"github.com/free5gc/openapi/models"
 )
 
@@ -41,8 +41,8 @@ func RemoveAmfUe(ue *context.AmfUe, notifyNF bool) {
 }
 
 func PurgeAmfUeSubscriberData(ue *context.AmfUe) {
-	if ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
-		err := PurgeSubscriberData(ue, models.AccessType__3_GPP_ACCESS)
+	if ue.RanUe[models.AccessType_3_GPP_ACCESS] != nil {
+		err := PurgeSubscriberData(ue, models.AccessType_3_GPP_ACCESS)
 		if err != nil {
 			logger.GmmLog.Errorf("Purge subscriber data Error[%v]", err.Error())
 		}
@@ -63,7 +63,7 @@ func AttachRanUeToAmfUeAndReleaseOldIfAny(amfUe *context.AmfUe, ranUe *context.R
 			amfUe.State[ranUe.Ran.AnType].Set(context.Registered)
 		}
 		StopAll5GSMMTimers(amfUe)
-		causeGroup := ngapType.CausePresentRadioNetwork
+		causeGroup := ngap_message.CauseChoiceRadioNetwork
 		causeValue := ngapType.CauseRadioNetworkPresentReleaseDueToNgranGeneratedReason
 		ngap_message.SendUEContextReleaseCommand(oldRanUe, context.UeContextReleaseUeContext, causeGroup, causeValue)
 	} else {
@@ -90,7 +90,7 @@ func AttachRanUeToAmfUeAndReleaseOldHandover(amfUe *context.AmfUe, sourceRanUe, 
 			amfUe.State[targetRanUe.Ran.AnType].Set(context.Registered)
 		}
 		StopAll5GSMMTimers(amfUe)
-		causeGroup := ngapType.CausePresentRadioNetwork
+		causeGroup := ngap_message.CauseChoiceRadioNetwork
 		causeValue := ngapType.CauseRadioNetworkPresentSuccessfulHandover
 		ngap_message.SendUEContextReleaseCommand(sourceRanUe, context.UeContextReleaseHandover, causeGroup, causeValue)
 	} else {
@@ -115,7 +115,7 @@ func ClearHoldingRanUe(ranUe *context.RanUe) {
 		}
 		ranUe.DetachAmfUe()
 		ranUe.Log.Infof("Clear Holding RanUE")
-		causeGroup := ngapType.CausePresentRadioNetwork
+		causeGroup := ngap_message.CauseChoiceRadioNetwork
 		causeValue := ngapType.CauseRadioNetworkPresentReleaseDueToNgranGeneratedReason
 		ngap_message.SendUEContextReleaseCommand(ranUe, context.UeContextReleaseUeContext, causeGroup, causeValue)
 	} else {

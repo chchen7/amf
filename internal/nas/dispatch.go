@@ -7,17 +7,16 @@ import (
 	"github.com/free5gc/amf/internal/context"
 	"github.com/free5gc/amf/internal/gmm"
 	"github.com/free5gc/amf/internal/logger"
-	"github.com/free5gc/nas"
+	"github.com/free5gc/nas/message"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/util/fsm"
 )
 
-func Dispatch(ue *context.AmfUe, accessType models.AccessType, procedureCode int64, msg *nas.Message) error {
-	if msg.GmmMessage == nil {
-		return errors.New("gmm Message is nil")
+func Dispatch(ue *context.AmfUe, accessType models.AccessType, procedureCode int64, msg message.Message) error {
+	if msg == nil {
+		return errors.New("GMM message is nil")
 	}
-
-	if msg.GsmMessage != nil {
+	if msg.ExtendedProtocolDiscriminator() != message.Epd5GSMobilityMgmtMsg {
 		return errors.New("GSM Message should include in GMM Message")
 	}
 
@@ -28,7 +27,7 @@ func Dispatch(ue *context.AmfUe, accessType models.AccessType, procedureCode int
 	return gmm.GmmFSM.SendEvent(ue.State[accessType], gmm.GmmMessageEvent, fsm.ArgsType{
 		gmm.ArgAmfUe:         ue,
 		gmm.ArgAccessType:    accessType,
-		gmm.ArgNASMessage:    msg.GmmMessage,
+		gmm.ArgNASMessage:    msg,
 		gmm.ArgProcedureCode: procedureCode,
 	}, logger.GmmLog)
 }

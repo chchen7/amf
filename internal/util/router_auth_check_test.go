@@ -26,7 +26,7 @@ func newMockAMFContext() *mockAMFContext {
 	return &mockAMFContext{}
 }
 
-func (m *mockAMFContext) AuthorizationCheck(token string, serviceName models.ServiceName) error {
+func (m *mockAMFContext) AuthorizationCheck(token string, serviceName models.Nrf_NFMgmt_ServiceName) error {
 	if token == Valid {
 		return nil
 	}
@@ -87,7 +87,7 @@ func TestRouterAuthorizationCheck_Check(t *testing.T) {
 			}
 			c.Request.Header.Set("Authorization", tt.args.token)
 
-			var testService models.ServiceName = "testService"
+			var testService models.Nrf_NFMgmt_ServiceName = "testService"
 
 			rac := util.NewRouterAuthorizationCheck(testService)
 			rac.Check(c, newMockAMFContext())
@@ -104,7 +104,7 @@ type mockProcessor struct {
 }
 
 func (m *mockProcessor) HandleSmContextStatusNotify(c *gin.Context,
-	notif models.SmfPduSessionSmContextStatusNotification,
+	notif models.Smf_PDUSess_SmContextStatusNotification,
 ) {
 	m.called = true
 	c.Status(http.StatusNoContent)
@@ -119,7 +119,7 @@ func (s *mockServer) Processor() *mockProcessor {
 }
 
 func (s *mockServer) HTTPSmContextStatusNotify(c *gin.Context) {
-	var smContextStatusNotification models.SmfPduSessionSmContextStatusNotification
+	var smContextStatusNotification models.Smf_PDUSess_SmContextStatusNotification
 
 	requestBody, err := c.GetRawData()
 	if err != nil {

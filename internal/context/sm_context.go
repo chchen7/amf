@@ -3,7 +3,7 @@ package context
 import (
 	"sync"
 
-	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/nas/message"
 	"github.com/free5gc/openapi/models"
 )
 
@@ -27,7 +27,7 @@ type SmContext struct {
 	vSmfID string
 
 	// for duplicate pdu session id handling
-	ulNASTransport *nasMessage.ULNASTransport
+	ulNASTransport *message.ULNASTransport
 	duplicated     bool
 }
 
@@ -192,13 +192,13 @@ func (c *SmContext) SetDuplicatedPduSessionID(duplicated bool) {
 	c.duplicated = duplicated
 }
 
-func (c *SmContext) ULNASTransport() *nasMessage.ULNASTransport {
+func (c *SmContext) ULNASTransport() *message.ULNASTransport {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.ulNASTransport
 }
 
-func (c *SmContext) StoreULNASTransport(msg *nasMessage.ULNASTransport) {
+func (c *SmContext) StoreULNASTransport(msg *message.ULNASTransport) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.ulNASTransport = msg

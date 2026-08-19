@@ -8,8 +8,8 @@ import (
 	"github.com/free5gc/amf/pkg/factory"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
-	Nudm_SubscriberDataManagement "github.com/free5gc/openapi/udm/SubscriberDataManagement"
-	Nudm_UEContextManagement "github.com/free5gc/openapi/udm/UEContextManagement"
+	Nudm_SubscriberDataManagement "github.com/free5gc/openapi/udm/SDM"
+	Nudm_UEContextManagement "github.com/free5gc/openapi/udm/UECM"
 	sbi_metrics "github.com/free5gc/util/metrics/sbi"
 )
 
@@ -74,17 +74,17 @@ func (s *nudmService) PutUpuAck(ue *amf_context.AmfUe, upuMacIue string) error {
 		return openapi.ReportError("udm not found")
 	}
 
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NUDM_SDM, models.NrfNfManagementNfType_UDM)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NUDM_SDM, models.Nrf_NFMgmt_NFType_UDM)
 	if err != nil {
 		return err
 	}
 
-	ackInfo := models.AcknowledgeInfo{
+	ackInfo := models.Udm_SDM_AcknowledgeInfo{
 		UpuMacIue: upuMacIue,
 	}
 	upuReq := Nudm_SubscriberDataManagement.UpuAckRequest{
-		Supi:            &ue.Supi,
-		AcknowledgeInfo: &ackInfo,
+		Supi:        &ue.Supi,
+		RequestBody: &ackInfo,
 	}
 	_, err = client.ProvidingAcknowledgementOfUEParametersUpdateApi.
 		UpuAck(ctx, &upuReq)
@@ -106,7 +106,7 @@ func (s *nudmService) SDMGetAmData(ue *amf_context.AmfUe) (problemDetails *model
 		},
 	}
 
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NUDM_SDM, models.NrfNfManagementNfType_UDM)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NUDM_SDM, models.Nrf_NFMgmt_NFType_UDM)
 	if err != nil {
 		return nil, err
 	}
@@ -114,9 +114,9 @@ func (s *nudmService) SDMGetAmData(ue *amf_context.AmfUe) (problemDetails *model
 	data, localErr := client.AccessAndMobilitySubscriptionDataRetrievalApi.GetAmData(
 		ctx, &getAmDataParamReq)
 	if localErr == nil {
-		ue.AccessAndMobilitySubscriptionData = &data.AccessAndMobilitySubscriptionData
-		if len(data.AccessAndMobilitySubscriptionData.Gpsis) > 0 {
-			ue.Gpsi = data.AccessAndMobilitySubscriptionData.Gpsis[0] // TODO: select GPSI
+		ue.AccessAndMobilitySubscriptionData = data.Udm_SDM_AccessAndMobilitySubscriptionData
+		if len(data.Udm_SDM_AccessAndMobilitySubscriptionData.Gpsis) > 0 {
+			ue.Gpsi = data.Udm_SDM_AccessAndMobilitySubscriptionData.Gpsis[0] // TODO: select GPSI
 		}
 	} else {
 		err = localErr
@@ -125,7 +125,7 @@ func (s *nudmService) SDMGetAmData(ue *amf_context.AmfUe) (problemDetails *model
 		case openapi.GenericOpenAPIError:
 			switch errorModel := apiErr.Model().(type) {
 			case Nudm_SubscriberDataManagement.GetAmDataError:
-				problemDetails = &errorModel.ProblemDetails
+				problemDetails = errorModel.ProblemDetails
 			case error:
 				problemDetails = openapi.ProblemDetailsSystemFailure(errorModel.Error())
 			default:
@@ -151,7 +151,7 @@ func (s *nudmService) SDMGetSmfSelectData(ue *amf_context.AmfUe) (problemDetails
 		PlmnId: &ue.PlmnId,
 	}
 
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NUDM_SDM, models.NrfNfManagementNfType_UDM)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NUDM_SDM, models.Nrf_NFMgmt_NFType_UDM)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (s *nudmService) SDMGetSmfSelectData(ue *amf_context.AmfUe) (problemDetails
 		GetSmfSelData(ctx, &paramReq)
 
 	if localErr == nil {
-		ue.SmfSelectionData = &data.SmfSelectionSubscriptionData
+		ue.SmfSelectionData = data.Udm_SDM_SmfSelectionSubscriptionData
 	} else {
 		err = localErr
 		switch errType := localErr.(type) {
@@ -168,7 +168,7 @@ func (s *nudmService) SDMGetSmfSelectData(ue *amf_context.AmfUe) (problemDetails
 			// API error
 			switch errModel := errType.Model().(type) {
 			case Nudm_SubscriberDataManagement.GetSmfSelDataError:
-				problemDetails = &errModel.ProblemDetails
+				problemDetails = errModel.ProblemDetails
 			case error:
 				err = errModel
 			default:
@@ -192,7 +192,7 @@ func (s *nudmService) SDMGetUeContextInSmfData(
 		return nil, openapi.ReportError("udm not found")
 	}
 
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NUDM_SDM, models.NrfNfManagementNfType_UDM)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NUDM_SDM, models.Nrf_NFMgmt_NFType_UDM)
 	if err != nil {
 		return nil, err
 	}
@@ -204,14 +204,14 @@ func (s *nudmService) SDMGetUeContextInSmfData(
 	data, localErr := client.UEContextInSMFDataRetrievalApi.
 		GetUeCtxInSmfData(ctx, &getUeCtxInSmfDataReq)
 	if localErr == nil {
-		ue.UeContextInSmfData = &data.UeContextInSmfData
+		ue.UeContextInSmfData = data.Udm_SDM_UeContextInSmfData
 	} else {
 		err = localErr
 		switch errType := localErr.(type) {
 		case openapi.GenericOpenAPIError:
 			switch errModel := errType.Model().(type) {
 			case Nudm_SubscriberDataManagement.GetUeCtxInSmfDataError:
-				problemDetails = &errModel.ProblemDetails
+				problemDetails = errModel.ProblemDetails
 			case error:
 				err = errModel
 			default:
@@ -234,17 +234,17 @@ func (s *nudmService) SDMSubscribe(ue *amf_context.AmfUe) (problemDetails *model
 	}
 
 	amfSelf := amf_context.GetSelf()
-	sdmSubscription := models.SdmSubscription{
+	sdmSubscription := models.Udm_SDM_SdmSubscription{
 		NfInstanceId: amfSelf.NfId,
 		PlmnId:       &ue.PlmnId,
 	}
 
 	subscribeReq := Nudm_SubscriberDataManagement.SubscribeRequest{
-		UeId:            &ue.Supi,
-		SdmSubscription: &sdmSubscription,
+		UeId:        &ue.Supi,
+		RequestBody: &sdmSubscription,
 	}
 
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NUDM_SDM, models.NrfNfManagementNfType_UDM)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NUDM_SDM, models.Nrf_NFMgmt_NFType_UDM)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +252,7 @@ func (s *nudmService) SDMSubscribe(ue *amf_context.AmfUe) (problemDetails *model
 	resSubscription, localErr := client.SubscriptionCreationApi.Subscribe(
 		ctx, &subscribeReq)
 	if localErr == nil {
-		ue.SdmSubscriptionId = resSubscription.SdmSubscription.SubscriptionId
+		ue.SdmSubscriptionId = resSubscription.Udm_SDM_SdmSubscription.SubscriptionId
 		return problemDetails, err
 	} else {
 		err = localErr
@@ -260,7 +260,7 @@ func (s *nudmService) SDMSubscribe(ue *amf_context.AmfUe) (problemDetails *model
 		case openapi.GenericOpenAPIError:
 			switch errModel := errType.Model().(type) {
 			case Nudm_SubscriberDataManagement.SubscribeError:
-				problemDetails = &errModel.ProblemDetails
+				problemDetails = errModel.ProblemDetails
 			case error:
 				err = errModel
 			default:
@@ -288,7 +288,7 @@ func (s *nudmService) SDMGetSliceSelectionSubscriptionData(
 		PlmnId: &ue.PlmnId,
 	}
 
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NUDM_SDM, models.NrfNfManagementNfType_UDM)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NUDM_SDM, models.Nrf_NFMgmt_NFType_UDM)
 	if err != nil {
 		return nil, err
 	}
@@ -297,8 +297,8 @@ func (s *nudmService) SDMGetSliceSelectionSubscriptionData(
 		GetNSSAI(ctx, &paramReq)
 
 	if localErr == nil {
-		for _, defaultSnssai := range nssai.Nssai.DefaultSingleNssais {
-			subscribedSnssai := models.SubscribedSnssai{
+		for _, defaultSnssai := range nssai.Udm_SDM_Nssai.DefaultSingleNssais {
+			subscribedSnssai := models.Nssf_NSSel_SubscribedSnssai{
 				SubscribedSnssai: &models.Snssai{
 					Sst: defaultSnssai.Sst,
 					Sd:  defaultSnssai.Sd,
@@ -307,8 +307,8 @@ func (s *nudmService) SDMGetSliceSelectionSubscriptionData(
 			}
 			ue.SubscribedNssai = append(ue.SubscribedNssai, subscribedSnssai)
 		}
-		for _, snssai := range nssai.Nssai.SingleNssais {
-			subscribedSnssai := models.SubscribedSnssai{
+		for _, snssai := range nssai.Udm_SDM_Nssai.SingleNssais {
+			subscribedSnssai := models.Nssf_NSSel_SubscribedSnssai{
 				SubscribedSnssai: &models.Snssai{
 					Sst: snssai.Sst,
 					Sd:  snssai.Sd,
@@ -324,7 +324,7 @@ func (s *nudmService) SDMGetSliceSelectionSubscriptionData(
 		case openapi.GenericOpenAPIError:
 			switch errModel := errType.Model().(type) {
 			case Nudm_SubscriberDataManagement.GetNSSAIError:
-				problemDetails = &errModel.ProblemDetails
+				problemDetails = errModel.ProblemDetails
 			case error:
 				err = errModel
 			default:
@@ -345,7 +345,7 @@ func (s *nudmService) SDMUnsubscribe(ue *amf_context.AmfUe) (problemDetails *mod
 		return nil, openapi.ReportError("udm not found")
 	}
 
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NUDM_SDM, models.NrfNfManagementNfType_UDM)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NUDM_SDM, models.Nrf_NFMgmt_NFType_UDM)
 	if err != nil {
 		return nil, err
 	}
@@ -364,7 +364,7 @@ func (s *nudmService) SDMUnsubscribe(ue *amf_context.AmfUe) (problemDetails *mod
 		case openapi.GenericOpenAPIError:
 			switch errModel := errType.Model().(type) {
 			case Nudm_SubscriberDataManagement.UnsubscribeError:
-				problemDetails = &errModel.ProblemDetails
+				problemDetails = errModel.ProblemDetails
 			case error:
 				err = errModel
 			default:
@@ -388,32 +388,32 @@ func (s *nudmService) UeCmRegistration(
 	}
 
 	amfSelf := amf_context.GetSelf()
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NUDM_UECM, models.NrfNfManagementNfType_UDM)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NUDM_UECM, models.Nrf_NFMgmt_NFType_UDM)
 	if err != nil {
 		return nil, err
 	}
 
 	switch accessType {
-	case models.AccessType__3_GPP_ACCESS:
+	case models.AccessType_3_GPP_ACCESS:
 		deregCallbackUri := fmt.Sprintf("%s%s/deregistration/%s",
 			amfSelf.GetIPv4Uri(),
 			factory.AmfCallbackResUriPrefix,
 			ue.Supi,
 		)
 
-		registrationData := models.Amf3GppAccessRegistration{
+		registrationData := models.Udm_UECM_Amf3GppAccessRegistration{
 			AmfInstanceId:          amfSelf.NfId,
 			InitialRegistrationInd: initialRegistrationInd,
 			Guami:                  &amfSelf.ServedGuamiList[0],
 			RatType:                ue.RatType,
 			DeregCallbackUri:       deregCallbackUri,
 			// TODO: not support Homogenous Support of IMS Voice over PS Sessions this stage
-			ImsVoPs: models.ImsVoPs_HOMOGENEOUS_NON_SUPPORT,
+			ImsVoPs: models.Udm_UECM_ImsVoPs_HOMOGENEOUS_NON_SUPPORT,
 		}
 
 		regReq := Nudm_UEContextManagement.Call3GppRegistrationRequest{
-			UeId:                      &ue.Supi,
-			Amf3GppAccessRegistration: &registrationData,
+			UeId:        &ue.Supi,
+			RequestBody: &registrationData,
 		}
 
 		_, localErr := client.AMFRegistrationFor3GPPAccessApi.Call3GppRegistration(ctx,
@@ -427,7 +427,7 @@ func (s *nudmService) UeCmRegistration(
 			case openapi.GenericOpenAPIError:
 				switch errorModel := apiErr.Model().(type) {
 				case Nudm_UEContextManagement.Call3GppRegistrationError:
-					return &errorModel.ProblemDetails, nil
+					return errorModel.ProblemDetails, nil
 				case error:
 					return openapi.ProblemDetailsSystemFailure(errorModel.Error()), nil
 				default:
@@ -446,7 +446,7 @@ func (s *nudmService) UeCmRegistration(
 			ue.Supi,
 		)
 
-		registrationData := models.AmfNon3GppAccessRegistration{
+		registrationData := models.Udm_UECM_AmfNon3GppAccessRegistration{
 			AmfInstanceId:    amfSelf.NfId,
 			Guami:            &amfSelf.ServedGuamiList[0],
 			RatType:          ue.RatType,
@@ -454,8 +454,8 @@ func (s *nudmService) UeCmRegistration(
 		}
 
 		regReq := Nudm_UEContextManagement.Non3GppRegistrationRequest{
-			UeId:                         &ue.Supi,
-			AmfNon3GppAccessRegistration: &registrationData,
+			UeId:        &ue.Supi,
+			RequestBody: &registrationData,
 		}
 
 		_, localErr := client.AMFRegistrationForNon3GPPAccessApi.
@@ -469,7 +469,7 @@ func (s *nudmService) UeCmRegistration(
 			case openapi.GenericOpenAPIError:
 				switch errorModel := apiErr.Model().(type) {
 				case Nudm_UEContextManagement.Non3GppRegistrationError:
-					return &errorModel.ProblemDetails, nil
+					return errorModel.ProblemDetails, nil
 				case error:
 					return openapi.ProblemDetailsSystemFailure(errorModel.Error()), nil
 				default:
@@ -495,21 +495,21 @@ func (s *nudmService) UeCmDeregistration(
 	}
 
 	amfSelf := amf_context.GetSelf()
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NUDM_UECM, models.NrfNfManagementNfType_UDM)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NUDM_UECM, models.Nrf_NFMgmt_NFType_UDM)
 	if err != nil {
 		return nil, err
 	}
 
 	switch accessType {
-	case models.AccessType__3_GPP_ACCESS:
-		modificationData := models.Amf3GppAccessRegistrationModification{
+	case models.AccessType_3_GPP_ACCESS:
+		modificationData := models.Udm_UECM_Amf3GppAccessRegistrationModification{
 			Guami:     &amfSelf.ServedGuamiList[0],
 			PurgeFlag: true,
 		}
 
 		modificationReq := Nudm_UEContextManagement.Update3GppRegistrationRequest{
-			UeId:                                  &ue.Supi,
-			Amf3GppAccessRegistrationModification: &modificationData,
+			UeId:        &ue.Supi,
+			RequestBody: &modificationData,
 		}
 
 		_, localErr := client.ParameterUpdateInTheAMFRegistrationFor3GPPAccessApi.Update3GppRegistration(ctx,
@@ -523,7 +523,7 @@ func (s *nudmService) UeCmDeregistration(
 			case openapi.GenericOpenAPIError:
 				switch errorModel := apiErr.Model().(type) {
 				case Nudm_UEContextManagement.Update3GppRegistrationError:
-					return &errorModel.ProblemDetails, nil
+					return errorModel.ProblemDetails, nil
 				case error:
 					return openapi.ProblemDetailsSystemFailure(errorModel.Error()), nil
 				default:
@@ -536,13 +536,13 @@ func (s *nudmService) UeCmDeregistration(
 			}
 		}
 	case models.AccessType_NON_3_GPP_ACCESS:
-		modificationData := models.AmfNon3GppAccessRegistrationModification{
+		modificationData := models.Udm_UECM_AmfNon3GppAccessRegistrationModification{
 			Guami:     &amfSelf.ServedGuamiList[0],
 			PurgeFlag: true,
 		}
 		modificationReq := Nudm_UEContextManagement.UpdateNon3GppRegistrationRequest{
-			UeId:                                     &ue.Supi,
-			AmfNon3GppAccessRegistrationModification: &modificationData,
+			UeId:        &ue.Supi,
+			RequestBody: &modificationData,
 		}
 
 		_, localErr := client.ParameterUpdateInTheAMFRegistrationForNon3GPPAccessApi.UpdateNon3GppRegistration(
@@ -556,7 +556,7 @@ func (s *nudmService) UeCmDeregistration(
 			case openapi.GenericOpenAPIError:
 				switch errorModel := apiErr.Model().(type) {
 				case Nudm_UEContextManagement.UpdateNon3GppRegistrationError:
-					return &errorModel.ProblemDetails, nil
+					return errorModel.ProblemDetails, nil
 				case error:
 					return openapi.ProblemDetailsSystemFailure(errorModel.Error()), nil
 				default:

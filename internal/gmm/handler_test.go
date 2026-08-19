@@ -5,23 +5,18 @@ import (
 
 	"github.com/free5gc/amf/internal/context"
 	"github.com/free5gc/amf/internal/logger"
-	"github.com/free5gc/nas/nasMessage"
+	nasMessage "github.com/free5gc/nas/message"
 	"github.com/free5gc/openapi/models"
 )
 
-// TestAssignLadnInfoNonStringDnn is a regression test for free5gc/free5gc#1071.
-// A subscriber whose DNN was provisioned as a JSON number is unmarshalled into
-// models.DnnInfo.Dnn (typed interface{}) as a float64. The former bare
-// dnnInfo.Dnn.(string) assertions in assignLadnInfo panicked on such a value,
-// which the NGAP worker's recover turned into a permanent worker death (DoS).
-// assignLadnInfo must now skip non-string DNN entries instead of panicking.
-func TestAssignLadnInfoNonStringDnn(t *testing.T) {
+// TestAssignLadnInfoDnn verifies LADN assignment with the migrated OpenAPI DNN type.
+func TestAssignLadnInfoDnn(t *testing.T) {
 	tests := []struct {
 		name string
-		dnn  interface{}
+		dnn  string
 	}{
-		{name: "numeric DNN (float64) does not panic", dnn: float64(123456)},
 		{name: "valid string DNN is handled normally", dnn: "internet"},
+		{name: "empty DNN is handled normally", dnn: ""},
 	}
 
 	for _, tc := range tests {
@@ -30,11 +25,11 @@ func TestAssignLadnInfoNonStringDnn(t *testing.T) {
 			ue.GmmLog = logger.GmmLog
 			// LADNIndication left nil so control reaches the else-if
 			// SmfSelectionData branch containing the reported sink.
-			ue.RegistrationRequest = &nasMessage.RegistrationRequest{}
-			ue.SmfSelectionData = &models.SmfSelectionSubscriptionData{
-				SubscribedSnssaiInfos: map[string]models.SnssaiInfo{
+			ue.RegistrationRequest = &nasMessage.RegReq{}
+			ue.SmfSelectionData = &models.Udm_SDM_SmfSelectionSubscriptionData{
+				SubscribedSnssaiInfos: map[string]models.Udm_SDM_SnssaiInfo{
 					"01010203": {
-						DnnInfos: []models.DnnInfo{{Dnn: tc.dnn}},
+						DnnInfos: []models.Udm_SDM_DnnInfo{{Dnn: tc.dnn}},
 					},
 				},
 			}
@@ -45,7 +40,7 @@ func TestAssignLadnInfoNonStringDnn(t *testing.T) {
 				}
 			}()
 
-			assignLadnInfo(ue, models.AccessType__3_GPP_ACCESS)
+			assignLadnInfo(ue, models.AccessType_3_GPP_ACCESS)
 		})
 	}
 }

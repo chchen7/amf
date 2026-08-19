@@ -28,7 +28,7 @@ func GetPDUHandlerMetrics(namespace string) []prometheus.Collector {
 	)
 
 	pduSessionActiveGauge.With(prometheus.Labels{
-		PDU_SESSION_ACCESS_TYPE_LABEL: string(models.AccessType__3_GPP_ACCESS),
+		PDU_SESSION_ACCESS_TYPE_LABEL: string(models.AccessType_3_GPP_ACCESS),
 	}).Set(0)
 	pduSessionActiveGauge.With(prometheus.Labels{
 		PDU_SESSION_ACCESS_TYPE_LABEL: string(models.AccessType_NON_3_GPP_ACCESS),

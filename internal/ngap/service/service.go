@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/hex"
+	"errors"
 	"io"
 	"net"
 	"runtime/debug"
@@ -11,7 +12,7 @@ import (
 	"github.com/free5gc/amf/internal/logger"
 	ngap_internal "github.com/free5gc/amf/internal/ngap"
 	"github.com/free5gc/amf/pkg/factory"
-	"github.com/free5gc/ngap"
+	ngapMessage "github.com/free5gc/ngap/message"
 	"github.com/free5gc/sctp"
 )
 
@@ -93,12 +94,24 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler, sctpConfig *sctp.S
 	for {
 		newConn, err := sctpListener.AcceptSCTP(notimeout)
 		if err != nil {
-			switch err {
-			case syscall.EINTR, syscall.EAGAIN:
+			if sctpListener.IsStopped() {
+				return
+			}
+			switch {
+			case isRetryableSCTPError(err):
 				logger.NgapLog.Debugf("AcceptSCTP: %+v", err)
 			default:
 				logger.NgapLog.Errorf("Failed to accept: %+v", err)
 			}
+			continue
+		}
+		// The new SCTP listener returns (nil, nil) when Close interrupts
+		// AcceptSCTP. Treat that as a normal server shutdown.
+		if newConn == nil {
+			if sctpListener.IsStopped() {
+				return
+			}
+			logger.NgapLog.Error("AcceptSCTP returned a nil connection")
 			continue
 		}
 
@@ -114,7 +127,7 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler, sctpConfig *sctp.S
 			logger.NgapLog.Debugf("Get default sent param[value: %+v]", info)
 		}
 
-		info.PPID = ngap.PPID
+		info.PPID = ngapMessage.PPID
 		if errSetDefaultSentParam := newConn.SetDefaultSentParam(info); errSetDefaultSentParam != nil {
 			logger.NgapLog.Errorf("Set default sent param error: %+v, accept failed", errSetDefaultSentParam)
 			if errSetDefaultSentParam = newConn.Close(); errSetDefaultSentParam != nil {
@@ -164,9 +177,11 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler, sctpConfig *sctp.S
 
 func Stop() {
 	logger.NgapLog.Infof("Close SCTP server...")
-	if err := sctpListener.Close(); err != nil {
-		logger.NgapLog.Error(err)
-		logger.NgapLog.Infof("SCTP server may not close normally.")
+	if sctpListener != nil {
+		if err := sctpListener.Close(); err != nil {
+			logger.NgapLog.Error(err)
+			logger.NgapLog.Infof("SCTP server may not close normally.")
+		}
 	}
 
 	connections.Range(func(key, value interface{}) bool {
@@ -188,7 +203,7 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 		}
 
 		// if AMF call Stop(), then conn.Close() will return EBADF because conn has been closed inside Stop()
-		if err := conn.Close(); err != nil && err != syscall.EBADF {
+		if err := conn.Close(); err != nil && !errors.Is(err, syscall.EBADF) {
 			logger.NgapLog.Errorf("close connection error: %+v", err)
 		}
 		connections.Delete(conn)
@@ -199,21 +214,21 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 
 		n, info, notification, err := conn.SCTPRead(buf)
 		if err != nil {
-			switch err {
-			case io.EOF, io.ErrUnexpectedEOF:
+			switch classifySCTPReadError(err) {
+			case sctpReadEOF:
 				logger.NgapLog.Debugln("Read EOF from client")
 				handler.HandleConnectionError(conn)
 				return
-			case syscall.EAGAIN:
+			case sctpReadTimeout:
 				logger.NgapLog.Debugln("SCTP read timeout")
 				continue
-			case syscall.EINTR:
+			case sctpReadInterrupted:
 				logger.NgapLog.Debugf("SCTPRead: %+v", err)
 				continue
-			case syscall.EBADF:
+			case sctpReadClosed:
 				logger.NgapLog.Debugln("SCTP connection already closed")
 				return
-			default:
+			case sctpReadFailed:
 				logger.NgapLog.Errorf(
 					"Handle connection[addr: %+v] error: %+v",
 					conn.RemoteAddr(),
@@ -231,7 +246,7 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 				logger.NgapLog.Warnf("Received sctp notification[type 0x%x] but not handled", notification.Type())
 			}
 		} else {
-			if info == nil || info.PPID != ngap.PPID {
+			if info == nil || info.PPID != ngapMessage.PPID {
 				logger.NgapLog.Warnln("Received SCTP PPID != 60, discard this packet")
 				continue
 			}
@@ -242,6 +257,35 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 			// Dispatch message through worker pool for parallel processing
 			dispatchToWorkerPool(conn, buf[:n], handler)
 		}
+	}
+}
+
+func isRetryableSCTPError(err error) bool {
+	return errors.Is(err, syscall.EINTR) || errors.Is(err, syscall.EAGAIN)
+}
+
+type sctpReadError uint8
+
+const (
+	sctpReadFailed sctpReadError = iota
+	sctpReadEOF
+	sctpReadTimeout
+	sctpReadInterrupted
+	sctpReadClosed
+)
+
+func classifySCTPReadError(err error) sctpReadError {
+	switch {
+	case errors.Is(err, io.EOF), errors.Is(err, io.ErrUnexpectedEOF):
+		return sctpReadEOF
+	case errors.Is(err, syscall.EAGAIN):
+		return sctpReadTimeout
+	case errors.Is(err, syscall.EINTR):
+		return sctpReadInterrupted
+	case errors.Is(err, syscall.EBADF):
+		return sctpReadClosed
+	default:
+		return sctpReadFailed
 	}
 }
 

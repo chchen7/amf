@@ -31,7 +31,7 @@ type UEContext struct {
 	/* PDU sessions */
 	PduSessions []PduSession
 	/*Connection state */
-	CmState models.CmState
+	CmState models.Amf_EvtExpos_CmState
 }
 
 type UEContexts []UEContext
@@ -57,7 +57,7 @@ func (p *Processor) OAMRegisteredUEContextProcedure(supi string) (UEContexts, *m
 	if supi != "" {
 		if ue, ok := amfSelf.AmfUeFindBySupi(supi); ok {
 			ue.Lock.Lock()
-			ueContext := p.buildUEContext(ue, models.AccessType__3_GPP_ACCESS)
+			ueContext := p.buildUEContext(ue, models.AccessType_3_GPP_ACCESS)
 			if ueContext != nil {
 				ueContexts = append(ueContexts, *ueContext)
 			}
@@ -77,7 +77,7 @@ func (p *Processor) OAMRegisteredUEContextProcedure(supi string) (UEContexts, *m
 		amfSelf.UePool.Range(func(key, value interface{}) bool {
 			ue := value.(*context.AmfUe)
 			ue.Lock.Lock()
-			ueContext := p.buildUEContext(ue, models.AccessType__3_GPP_ACCESS)
+			ueContext := p.buildUEContext(ue, models.AccessType_3_GPP_ACCESS)
 			if ueContext != nil {
 				ueContexts = append(ueContexts, *ueContext)
 			}
@@ -96,7 +96,7 @@ func (p *Processor) OAMRegisteredUEContextProcedure(supi string) (UEContexts, *m
 func (p *Processor) buildUEContext(ue *context.AmfUe, accessType models.AccessType) *UEContext {
 	if ue.State[accessType].Is(context.Registered) {
 		ueContext := &UEContext{
-			AccessType: models.AccessType__3_GPP_ACCESS,
+			AccessType: models.AccessType_3_GPP_ACCESS,
 			Supi:       ue.Supi,
 			Guti:       ue.Guti,
 			Mcc:        ue.Tai.PlmnId.Mcc,
@@ -120,9 +120,9 @@ func (p *Processor) buildUEContext(ue *context.AmfUe, accessType models.AccessTy
 		})
 
 		if ue.CmConnect(accessType) {
-			ueContext.CmState = models.CmState_CONNECTED
+			ueContext.CmState = models.Amf_EvtExpos_CmState_CONNECTED
 		} else {
-			ueContext.CmState = models.CmState_IDLE
+			ueContext.CmState = models.Amf_EvtExpos_CmState_IDLE
 		}
 		return ueContext
 	}

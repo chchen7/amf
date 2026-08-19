@@ -71,66 +71,66 @@ func newRouter(s *Server) *gin.Engine {
 	router.Use(metrics.InboundMetrics())
 	amfHttpCallBackGroup := router.Group(factory.AmfCallbackResUriPrefix)
 	amfHttpCallBackRoutes := s.getHttpCallBackRoutes()
-	callbackAuthCheck := util_oauth.NewRouterAuthorizationCheck(models.ServiceName("namf-callback"))
+	callbackAuthCheck := util_oauth.NewRouterAuthorizationCheck(models.Nrf_NFMgmt_ServiceName("namf-callback"))
 	amfHttpCallBackGroup.Use(func(c *gin.Context) {
 		callbackAuthCheck.Check(c, amf_context.GetSelf())
 	})
 	applyRoutes(amfHttpCallBackGroup, amfHttpCallBackRoutes)
 
 	for _, serverName := range factory.AmfConfig.Configuration.ServiceNameList {
-		switch models.ServiceName(serverName) {
-		case models.ServiceName_NAMF_COMM:
+		switch models.Nrf_NFMgmt_ServiceName(serverName) {
+		case models.Nrf_NFMgmt_ServiceName_NAMF_COMM:
 			amfCommunicationGroup := router.Group(factory.AmfCommResUriPrefix)
 			amfCommunicationRoutes := s.getCommunicationRoutes()
-			routerAuthorizationCheck := util_oauth.NewRouterAuthorizationCheck(models.ServiceName_NAMF_COMM)
+			routerAuthorizationCheck := util_oauth.NewRouterAuthorizationCheck(models.Nrf_NFMgmt_ServiceName_NAMF_COMM)
 			amfCommunicationGroup.Use(func(c *gin.Context) {
 				routerAuthorizationCheck.Check(c, amf_context.GetSelf())
 			})
 			applyRoutes(amfCommunicationGroup, amfCommunicationRoutes)
-		case models.ServiceName_NAMF_EVTS:
+		case models.Nrf_NFMgmt_ServiceName_NAMF_EVTS:
 			amfEventExposureGroup := router.Group(factory.AmfEvtsResUriPrefix)
 			amfEventExposureRoutes := s.getEventexposureRoutes()
-			routerAuthorizationCheck := util_oauth.NewRouterAuthorizationCheck(models.ServiceName_NAMF_EVTS)
+			routerAuthorizationCheck := util_oauth.NewRouterAuthorizationCheck(models.Nrf_NFMgmt_ServiceName_NAMF_EVTS)
 			amfEventExposureGroup.Use(func(c *gin.Context) {
 				routerAuthorizationCheck.Check(c, amf_context.GetSelf())
 			})
 			applyRoutes(amfEventExposureGroup, amfEventExposureRoutes)
-		case models.ServiceName_NAMF_MT:
+		case models.Nrf_NFMgmt_ServiceName_NAMF_MT:
 			amfMTGroup := router.Group(factory.AmfMtResUriPrefix)
 			amfMTRoutes := s.getMTRoutes()
-			routerAuthorizationCheck := util_oauth.NewRouterAuthorizationCheck(models.ServiceName_NAMF_MT)
+			routerAuthorizationCheck := util_oauth.NewRouterAuthorizationCheck(models.Nrf_NFMgmt_ServiceName_NAMF_MT)
 			amfMTGroup.Use(func(c *gin.Context) {
 				routerAuthorizationCheck.Check(c, amf_context.GetSelf())
 			})
 			applyRoutes(amfMTGroup, amfMTRoutes)
-		case models.ServiceName_NAMF_LOC:
+		case models.Nrf_NFMgmt_ServiceName_NAMF_LOC:
 			amfLocationGroup := router.Group(factory.AmfLocResUriPrefix)
 			amfLocationRoutes := s.getLocationRoutes()
-			routerAuthorizationCheck := util_oauth.NewRouterAuthorizationCheck(models.ServiceName_NAMF_LOC)
+			routerAuthorizationCheck := util_oauth.NewRouterAuthorizationCheck(models.Nrf_NFMgmt_ServiceName_NAMF_LOC)
 			amfLocationGroup.Use(func(c *gin.Context) {
 				routerAuthorizationCheck.Check(c, amf_context.GetSelf())
 			})
 			applyRoutes(amfLocationGroup, amfLocationRoutes)
-		case models.ServiceName_NAMF_OAM:
+		case models.Nrf_NFMgmt_ServiceName_NAMF_OAM:
 			amfOAMGroup := router.Group(factory.AmfOamResUriPrefix)
 			amfOAMRoutes := s.getOAMRoutes()
-			routerAuthorizationCheck := util_oauth.NewRouterAuthorizationCheck(models.ServiceName_NAMF_OAM)
+			routerAuthorizationCheck := util_oauth.NewRouterAuthorizationCheck(models.Nrf_NFMgmt_ServiceName_NAMF_OAM)
 			amfOAMGroup.Use(func(c *gin.Context) {
 				routerAuthorizationCheck.Check(c, amf_context.GetSelf())
 			})
 			applyRoutes(amfOAMGroup, amfOAMRoutes)
-		case models.ServiceName_NAMF_MBS_COMM:
+		case models.Nrf_NFMgmt_ServiceName_NAMF_MBS_COMM:
 			amfMbsComGroup := router.Group(factory.AmfMbsComResUriPrefix)
 			amfMbsComRoutes := s.getMbsCommunicationRoutes()
-			routerAuthorizationCheck := util_oauth.NewRouterAuthorizationCheck(models.ServiceName_NAMF_MBS_COMM)
+			routerAuthorizationCheck := util_oauth.NewRouterAuthorizationCheck(models.Nrf_NFMgmt_ServiceName_NAMF_MBS_COMM)
 			amfMbsComGroup.Use(func(c *gin.Context) {
 				routerAuthorizationCheck.Check(c, amf_context.GetSelf())
 			})
 			applyRoutes(amfMbsComGroup, amfMbsComRoutes)
-		case models.ServiceName_NAMF_MBS_BC:
+		case models.Nrf_NFMgmt_ServiceName_NAMF_MBS_BC:
 			amfMbsBCGroup := router.Group(factory.AmfMbsBCResUriPrefix)
 			amfMbsBCRoutes := s.getMbsBroadcastRoutes()
-			routerAuthorizationCheck := util_oauth.NewRouterAuthorizationCheck(models.ServiceName_NAMF_MBS_BC)
+			routerAuthorizationCheck := util_oauth.NewRouterAuthorizationCheck(models.Nrf_NFMgmt_ServiceName_NAMF_MBS_BC)
 			amfMbsBCGroup.Use(func(c *gin.Context) {
 				routerAuthorizationCheck.Check(c, amf_context.GetSelf())
 			})

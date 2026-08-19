@@ -217,7 +217,7 @@ func (a *AmfApp) Start() {
 		}()
 	}
 
-	var profile models.NrfNfManagementNfProfile
+	var profile models.Nrf_NFMgmt_NFProfile
 	if profileTmp, err1 := a.Consumer().BuildNFInstance(a.Context()); err1 != nil {
 		logger.InitLog.Error("Build AMF Profile Error")
 	} else {
@@ -312,7 +312,7 @@ func (a *AmfApp) terminateProcedure() {
 	ngap_service.Stop()
 
 	// notify SBI subscribers before deregistering so NRF still recognizes AMF as a valid OAuth client
-	callback.SendAmfStatusChangeNotify((string)(models.StatusChange_UNAVAILABLE), amfSelf.ServedGuamiList)
+	callback.SendAmfStatusChangeNotify((string)(models.Amf_Comm_StatusChange_UNAVAILABLE), amfSelf.ServedGuamiList)
 
 	// deregister with NRF
 	problemDetails, err_deg := a.Consumer().SendDeregisterNFInstance()

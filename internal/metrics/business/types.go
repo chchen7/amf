@@ -96,7 +96,7 @@ const (
 	HANDOVER_EMPTY_CAUSE                               = ""
 )
 
-var AccessTypes = []string{string(models.AccessType__3_GPP_ACCESS), string(models.AccessType_NON_3_GPP_ACCESS)}
+var AccessTypes = []string{string(models.AccessType_3_GPP_ACCESS), string(models.AccessType_NON_3_GPP_ACCESS)}
 
 var handoverMetricsEnabled bool
 

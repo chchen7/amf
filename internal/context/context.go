@@ -13,8 +13,8 @@ import (
 
 	"github.com/free5gc/amf/internal/logger"
 	"github.com/free5gc/amf/pkg/factory"
-	"github.com/free5gc/nas/nasConvert"
-	"github.com/free5gc/nas/security"
+	"github.com/free5gc/nas/ie"
+	nas_message "github.com/free5gc/nas/message"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/openapi/oauth"
@@ -36,7 +36,7 @@ func init() {
 	GetSelf().RelativeCapacity = 0xff
 	GetSelf().ServedGuamiList = make([]models.Guami, 0, MaxNumOfServedGuamiList)
 	GetSelf().PlmnSupportList = make([]factory.PlmnSupportItem, 0, MaxNumOfPLMNs)
-	GetSelf().NfService = make(map[models.ServiceName]models.NrfNfManagementNfService)
+	GetSelf().NfService = make(map[models.Nrf_NFMgmt_ServiceName]models.Nrf_NFMgmt_NFService)
 	GetSelf().NetworkName.Full = "free5GC"
 	tmsiGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
 	amfStatusSubscriptionIDGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
@@ -44,7 +44,7 @@ func init() {
 }
 
 type NFContext interface {
-	AuthorizationCheck(token string, serviceName models.ServiceName) error
+	AuthorizationCheck(token string, serviceName models.Nrf_NFMgmt_ServiceName) error
 }
 
 var _ NFContext = &AMFContext{}
@@ -62,7 +62,7 @@ type AMFContext struct {
 	RelativeCapacity             int64
 	NfId                         string
 	Name                         string
-	NfService                    map[models.ServiceName]models.NrfNfManagementNfService // nfservice that amf support
+	NfService                    map[models.Nrf_NFMgmt_ServiceName]models.Nrf_NFMgmt_NFService
 	UriScheme                    models.UriScheme
 	BindingIPv4                  string
 	SBIPort                      int
@@ -99,7 +99,7 @@ type AMFContextEventSubscription struct {
 	IsGroupUe         bool
 	UeSupiList        []string
 	Expiry            *time.Time
-	EventSubscription models.AmfEventSubscription
+	EventSubscription models.Amf_EvtExpos_AmfEventSubscription
 }
 
 type SecurityAlgorithm struct {
@@ -142,7 +142,7 @@ func InitAmfContext(context *AMFContext) {
 		context.SecurityAlgorithm.CipheringOrder = getEncAlgOrder(security.CipheringOrder)
 	}
 	context.NetworkName = configuration.NetworkName
-	context.TimeZone = nasConvert.GetTimeZone(time.Now())
+	context.TimeZone = (&ie.TimeZoneAndTime{Time: time.Now()}).GetTimeZone().Value
 	context.T3502Value = configuration.T3502Value
 	context.T3512Value = configuration.T3512Value
 	context.Non3gppDeregTimerValue = configuration.Non3gppDeregTimerValue
@@ -160,13 +160,13 @@ func getIntAlgOrder(integrityOrder []string) (intOrder []uint8) {
 	for _, intAlg := range integrityOrder {
 		switch intAlg {
 		case "NIA0":
-			intOrder = append(intOrder, security.AlgIntegrity128NIA0)
+			intOrder = append(intOrder, uint8(nas_message.AlgIntegrity128NIA0))
 		case "NIA1":
-			intOrder = append(intOrder, security.AlgIntegrity128NIA1)
+			intOrder = append(intOrder, uint8(nas_message.AlgIntegrity128NIA1))
 		case "NIA2":
-			intOrder = append(intOrder, security.AlgIntegrity128NIA2)
+			intOrder = append(intOrder, uint8(nas_message.AlgIntegrity128NIA2))
 		case "NIA3":
-			intOrder = append(intOrder, security.AlgIntegrity128NIA3)
+			intOrder = append(intOrder, uint8(nas_message.AlgIntegrity128NIA3))
 		default:
 			logger.UtilLog.Errorf("Unsupported algorithm: %s", intAlg)
 		}
@@ -178,13 +178,13 @@ func getEncAlgOrder(cipheringOrder []string) (encOrder []uint8) {
 	for _, encAlg := range cipheringOrder {
 		switch encAlg {
 		case "NEA0":
-			encOrder = append(encOrder, security.AlgCiphering128NEA0)
+			encOrder = append(encOrder, uint8(nas_message.AlgCiphering128NEA0))
 		case "NEA1":
-			encOrder = append(encOrder, security.AlgCiphering128NEA1)
+			encOrder = append(encOrder, uint8(nas_message.AlgCiphering128NEA1))
 		case "NEA2":
-			encOrder = append(encOrder, security.AlgCiphering128NEA2)
+			encOrder = append(encOrder, uint8(nas_message.AlgCiphering128NEA2))
 		case "NEA3":
-			encOrder = append(encOrder, security.AlgCiphering128NEA3)
+			encOrder = append(encOrder, uint8(nas_message.AlgCiphering128NEA3))
 		default:
 			logger.UtilLog.Errorf("Unsupported algorithm: %s", encAlg)
 		}
@@ -239,7 +239,7 @@ func (context *AMFContext) AllocateRegistrationArea(ue *AmfUe, anType models.Acc
 	}
 }
 
-func (context *AMFContext) NewAMFStatusSubscription(subscriptionData models.AmfCommunicationSubscriptionData) (
+func (context *AMFContext) NewAMFStatusSubscription(subscriptionData models.Amf_Comm_SubscriptionData) (
 	subscriptionID string,
 ) {
 	id, err := amfStatusSubscriptionIDGenerator.Allocate()
@@ -255,10 +255,10 @@ func (context *AMFContext) NewAMFStatusSubscription(subscriptionData models.AmfC
 
 // Return Value: (subscriptionData *models.SubScriptionData, ok bool)
 func (context *AMFContext) FindAMFStatusSubscription(subscriptionID string) (
-	*models.AmfCommunicationSubscriptionData, bool,
+	*models.Amf_Comm_SubscriptionData, bool,
 ) {
 	if value, ok := context.AMFStatusSubscriptions.Load(subscriptionID); ok {
-		subscriptionData := value.(models.AmfCommunicationSubscriptionData)
+		subscriptionData := value.(models.Amf_Comm_SubscriptionData)
 		return &subscriptionData, ok
 	} else {
 		return nil, false
@@ -490,23 +490,23 @@ func (context *AMFContext) InitNFService(serivceName []string, version string) {
 	tmpVersion := strings.Split(version, ".")
 	versionUri := "v" + tmpVersion[0]
 	for index, nameString := range serivceName {
-		name := models.ServiceName(nameString)
-		context.NfService[name] = models.NrfNfManagementNfService{
+		name := models.Nrf_NFMgmt_ServiceName(nameString)
+		context.NfService[name] = models.Nrf_NFMgmt_NFService{
 			ServiceInstanceId: strconv.Itoa(index),
 			ServiceName:       name,
-			Versions: []models.NfServiceVersion{
+			Versions: []models.Nrf_NFMgmt_NFServiceVersion{
 				{
 					ApiFullVersion:  version,
 					ApiVersionInUri: versionUri,
 				},
 			},
 			Scheme:          context.UriScheme,
-			NfServiceStatus: models.NfServiceStatus_REGISTERED,
+			NfServiceStatus: models.Nrf_NFMgmt_NFServiceStatus_REGISTERED,
 			ApiPrefix:       context.GetIPv4Uri(),
-			IpEndPoints: []models.IpEndPoint{
+			IpEndPoints: []models.Nrf_NFMgmt_IpEndPoint{
 				{
 					Ipv4Address: context.RegisterIPv4,
-					Transport:   models.NrfNfManagementTransportProtocol_TCP,
+					Transport:   models.Nrf_NFMgmt_TransportProtocol_TCP,
 					Port:        int32(context.SBIPort),
 				},
 			},
@@ -559,17 +559,17 @@ func GetSelf() *AMFContext {
 	return &amfContext
 }
 
-func (c *AMFContext) GetTokenCtx(serviceName models.ServiceName, targetNF models.NrfNfManagementNfType) (
+func (c *AMFContext) GetTokenCtx(serviceName models.Nrf_NFMgmt_ServiceName, targetNF models.Nrf_NFMgmt_NFType) (
 	context.Context, *models.ProblemDetails, error,
 ) {
 	if !c.OAuth2Required {
 		return context.TODO(), nil, nil
 	}
-	return oauth.GetTokenCtx(models.NrfNfManagementNfType_AMF, targetNF,
+	return oauth.GetTokenCtx(models.Nrf_NFMgmt_NFType_AMF, targetNF,
 		c.NfId, c.NrfUri, string(serviceName))
 }
 
-func (c *AMFContext) AuthorizationCheck(token string, serviceName models.ServiceName) error {
+func (c *AMFContext) AuthorizationCheck(token string, serviceName models.Nrf_NFMgmt_ServiceName) error {
 	if !c.OAuth2Required {
 		logger.UtilLog.Debugf("AMFContext::AuthorizationCheck: OAuth2 not required\n")
 		return nil

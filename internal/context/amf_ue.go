@@ -15,9 +15,8 @@ import (
 	"github.com/free5gc/amf/internal/logger"
 	business_metrics "github.com/free5gc/amf/internal/metrics/business"
 	"github.com/free5gc/amf/pkg/factory"
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/nas/nasType"
-	"github.com/free5gc/nas/security"
+	"github.com/free5gc/nas/ie"
+	"github.com/free5gc/nas/message"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/util/fsm"
@@ -63,7 +62,7 @@ type AmfUe struct {
 	/* Registration procedure related context */
 	RegistrationType5GS                uint8
 	IdentityTypeUsedForRegistration    uint8
-	RegistrationRequest                *nasMessage.RegistrationRequest
+	RegistrationRequest                *message.RegReq
 	ServingAmfChanged                  bool
 	DeregistrationTargetAccessType     uint8 // only used when deregistration procedure is initialized by the network
 	RegistrationAcceptForNon3GPPAccess []byte
@@ -71,7 +70,7 @@ type AmfUe struct {
 	RetransmissionOfInitialNASMsg      bool
 	RequestIdentityType                uint8
 	/* Used for AMF relocation */
-	TargetAmfProfile *models.NrfNfDiscoveryNfProfile
+	TargetAmfProfile *models.Nrf_NFDisc_NFProfile
 	TargetAmfUri     string
 	/* Ue Identity */
 	PlmnId                 models.PlmnId
@@ -97,20 +96,20 @@ type AmfUe struct {
 	NudmUECMUri                       string
 	NudmSDMUri                        string
 	ContextValid                      bool
-	Reachability                      models.UeReachability
-	SmfSelectionData                  *models.SmfSelectionSubscriptionData
-	UeContextInSmfData                *models.UeContextInSmfData
+	Reachability                      models.Amf_EvtExpos_UeReachability
+	SmfSelectionData                  *models.Udm_SDM_SmfSelectionSubscriptionData
+	UeContextInSmfData                *models.Udm_SDM_UeContextInSmfData
 	TraceData                         *models.TraceData
 	UdmGroupId                        string
-	SubscribedNssai                   []models.SubscribedSnssai
-	AccessAndMobilitySubscriptionData *models.AccessAndMobilitySubscriptionData
+	SubscribedNssai                   []models.Nssf_NSSel_SubscribedSnssai
+	AccessAndMobilitySubscriptionData *models.Udm_SDM_AccessAndMobilitySubscriptionData
 	BackupAmfInfo                     []models.BackupAmfInfo
 	/* contex abut ausf */
 	AusfGroupId                       string
 	AusfId                            string
 	AusfUri                           string
 	RoutingIndicator                  string
-	AuthenticationCtx                 *models.UeAuthenticationCtx
+	AuthenticationCtx                 *models.Ausf_UEAU_UEAuthenticationCtx
 	AuthFailureCauseSynchFailureTimes int
 	IdentityRequestSendTimes          int
 	ABBA                              []uint8
@@ -121,7 +120,7 @@ type AmfUe struct {
 	PcfUri                       string
 	PolicyAssociationId          string
 	AmPolicyUri                  string
-	AmPolicyAssociation          *models.PcfAmPolicyControlPolicyAssociation
+	AmPolicyAssociation          *models.Pcf_AMPolCtrl_PolicyAssociation
 	RequestTriggerLocationChange bool // true if AmPolicyAssociation.Trigger contains RequestTrigger_LOC_CH
 	/* UeContextForHandover */
 	HandoverNotifyUri string
@@ -129,7 +128,7 @@ type AmfUe struct {
 	N1N2MessageIDGenerator          *idgenerator.IDGenerator
 	N1N2Message                     *N1N2Message
 	N1N2MessageSubscribeIDGenerator *idgenerator.IDGenerator
-	// map[int64]models.UeN1N2InfoSubscriptionCreateData; use n1n2MessageSubscriptionID as key
+	// map[int64]models.Amf_Comm_UeN1N2InfoSubscriptionCreateData; use n1n2MessageSubscriptionID as key
 	N1N2MessageSubscription sync.Map
 	/* Pdu Sesseion context */
 	SmContextList sync.Map // map[int32]*SmContext, pdu session id as key
@@ -138,8 +137,8 @@ type AmfUe struct {
 	/* other */
 	onGoing                         map[models.AccessType]*OnGoing
 	UeRadioCapability               string // OCTET string
-	Capability5GMM                  nasType.Capability5GMM
-	ConfigurationUpdateIndication   nasType.ConfigurationUpdateIndication
+	Capability5GMM                  ie.Capability5GMM
+	ConfigurationUpdateIndication   ie.CfgUpdateInd
 	ConfigurationUpdateCommandFlags *ConfigurationUpdateCommandFlags
 	/* context related to Paging */
 	UeRadioCapabilityForPaging                 *UERadioCapabilityForPaging
@@ -147,8 +146,8 @@ type AmfUe struct {
 	UESpecificDRX                              uint8
 	/* Security Context */
 	SecurityContextAvailable bool
-	UESecurityCapability     nasType.UESecurityCapability // for security command
-	NgKsi                    models.NgKsi
+	UESecurityCapability     ie.UESecCapability // for security command
+	NgKsi                    models.Amf_Comm_NgKsi
 	MacFailed                bool      // set to true if the integrity check of current NAS message is failed
 	KnasInt                  [16]uint8 // 16 byte
 	KnasEnc                  [16]uint8 // 16 byte
@@ -156,8 +155,8 @@ type AmfUe struct {
 	Kn3iwf                   []uint8   // 32 byte
 	NH                       []uint8   // 32 byte
 	NCC                      uint8     // 0..7
-	ULCount                  security.Count
-	DLCount                  security.Count
+	ULCount                  message.Count
+	DLCount                  message.Count
 	CipheringAlg             uint8
 	IntegrityAlg             uint8
 	/* Registration Area */
@@ -166,9 +165,9 @@ type AmfUe struct {
 	/* Network Slicing related context and Nssf */
 	NssfId                            string
 	NssfUri                           string
-	NetworkSliceInfo                  *models.AuthorizedNetworkSliceInfo
-	AllowedNssai                      map[models.AccessType][]models.AllowedSnssai
-	ConfiguredNssai                   []models.ConfiguredSnssai
+	NetworkSliceInfo                  *models.Nssf_NSSel_AuthorizedNetworkSliceInfo
+	AllowedNssai                      map[models.AccessType][]models.Nssf_NSSel_AllowedSnssai
+	ConfiguredNssai                   []models.Nssf_NSSel_ConfiguredSnssai
 	NetworkSlicingSubscriptionChanged bool
 	SdmSubscriptionId                 string
 	UeCmRegistered                    map[models.AccessType]bool
@@ -209,12 +208,12 @@ type AmfUeEventSubscription struct {
 	Timestamp         time.Time
 	AnyUe             bool
 	RemainReports     *int32
-	EventSubscription *models.ExtAmfEventSubscription
+	EventSubscription *models.Amf_Comm_ExtAmfEventSubscription
 }
 
 type N1N2Message struct {
-	Request     models.N1N2MessageTransferRequest
-	Status      models.N1N2MessageTransferCause
+	Request     models.N1N2MessageTransferRequestBody
+	Status      models.Amf_Comm_N1N2MessageTransferCause
 	ResourceUri string
 }
 
@@ -272,20 +271,20 @@ type ConfigurationUpdateCommandFlags struct {
 func (ue *AmfUe) init() {
 	ue.servingAMF = GetSelf()
 	ue.State = make(map[models.AccessType]*fsm.State)
-	ue.State[models.AccessType__3_GPP_ACCESS] = fsm.NewState(Deregistered)
+	ue.State[models.AccessType_3_GPP_ACCESS] = fsm.NewState(Deregistered)
 	ue.State[models.AccessType_NON_3_GPP_ACCESS] = fsm.NewState(Deregistered)
 	ue.UnauthenticatedSupi = true
 	ue.EventSubscriptionsInfo = make(map[string]*AmfUeEventSubscription)
 	ue.RanUe = make(map[models.AccessType]*RanUe)
 	ue.RegistrationArea = make(map[models.AccessType][]models.Tai)
-	ue.AllowedNssai = make(map[models.AccessType][]models.AllowedSnssai)
+	ue.AllowedNssai = make(map[models.AccessType][]models.Nssf_NSSel_AllowedSnssai)
 	ue.N1N2MessageIDGenerator = idgenerator.NewGenerator(1, 2147483647)
 	ue.N1N2MessageSubscribeIDGenerator = idgenerator.NewGenerator(1, 2147483647)
 	ue.onGoing = make(map[models.AccessType]*OnGoing)
 	ue.onGoing[models.AccessType_NON_3_GPP_ACCESS] = new(OnGoing)
 	ue.onGoing[models.AccessType_NON_3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
-	ue.onGoing[models.AccessType__3_GPP_ACCESS] = new(OnGoing)
-	ue.onGoing[models.AccessType__3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
+	ue.onGoing[models.AccessType_3_GPP_ACCESS] = new(OnGoing)
+	ue.onGoing[models.AccessType_3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
 	ue.ReleaseCause = make(map[models.AccessType]*CauseAll)
 	ue.UeCmRegistered = make(map[models.AccessType]bool)
 	ue.GmmLog = logger.GmmLog
@@ -365,7 +364,7 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 func (ue *AmfUe) UpdateLogFields(accessType models.AccessType) {
 	anTypeStr := ""
 	switch accessType {
-	case models.AccessType__3_GPP_ACCESS:
+	case models.AccessType_3_GPP_ACCESS:
 		anTypeStr = "3GPP"
 	case models.AccessType_NON_3_GPP_ACCESS:
 		anTypeStr = "Non3GPP"
@@ -387,28 +386,28 @@ func (ue *AmfUe) UpdateLogFields(accessType models.AccessType) {
 }
 
 func (ue *AmfUe) GetAnType() models.AccessType {
-	if ue.CmConnect(models.AccessType__3_GPP_ACCESS) {
-		return models.AccessType__3_GPP_ACCESS
+	if ue.CmConnect(models.AccessType_3_GPP_ACCESS) {
+		return models.AccessType_3_GPP_ACCESS
 	} else if ue.CmConnect(models.AccessType_NON_3_GPP_ACCESS) {
 		return models.AccessType_NON_3_GPP_ACCESS
 	}
 	return ""
 }
 
-func (ue *AmfUe) GetCmInfo() (cmInfos []models.CmInfo) {
-	var cmInfo models.CmInfo
-	cmInfo.AccessType = models.AccessType__3_GPP_ACCESS
+func (ue *AmfUe) GetCmInfo() (cmInfos []models.Amf_EvtExpos_CmInfo) {
+	var cmInfo models.Amf_EvtExpos_CmInfo
+	cmInfo.AccessType = models.AccessType_3_GPP_ACCESS
 	if ue.CmConnect(cmInfo.AccessType) {
-		cmInfo.CmState = models.CmState_CONNECTED
+		cmInfo.CmState = models.Amf_EvtExpos_CmState_CONNECTED
 	} else {
-		cmInfo.CmState = models.CmState_IDLE
+		cmInfo.CmState = models.Amf_EvtExpos_CmState_IDLE
 	}
 	cmInfos = append(cmInfos, cmInfo)
 	cmInfo.AccessType = models.AccessType_NON_3_GPP_ACCESS
 	if ue.CmConnect(cmInfo.AccessType) {
-		cmInfo.CmState = models.CmState_CONNECTED
+		cmInfo.CmState = models.Amf_EvtExpos_CmState_CONNECTED
 	} else {
-		cmInfo.CmState = models.CmState_IDLE
+		cmInfo.CmState = models.Amf_EvtExpos_CmState_IDLE
 	}
 	cmInfos = append(cmInfos, cmInfo)
 	return
@@ -432,7 +431,10 @@ func (ue *AmfUe) InSubscribedNssai(targetSNssai models.Snssai) bool {
 	return false
 }
 
-func (ue *AmfUe) GetNsiInformationFromSnssai(anType models.AccessType, snssai models.Snssai) *models.NsiInformation {
+func (ue *AmfUe) GetNsiInformationFromSnssai(
+	anType models.AccessType,
+	snssai models.Snssai,
+) *models.Nssf_NSSel_NsiInformation {
 	for _, allowedSnssai := range ue.AllowedNssai[anType] {
 		if openapi.SnssaiEqualFold(*allowedSnssai.AllowedSnssai, snssai) {
 			// TODO: select NsiInformation based on operator policy
@@ -465,7 +467,7 @@ func (ue *AmfUe) HasWildCardSubscribedDNN() bool {
 }
 
 func (ue *AmfUe) SecurityContextIsValid() bool {
-	return ue.SecurityContextAvailable && ue.NgKsi.Ksi != nasMessage.NasKeySetIdentifierNoKeyIsAvailable && !ue.MacFailed
+	return ue.SecurityContextAvailable && ue.NgKsi.Ksi != int32(ie.NASKeyNA) && !ue.MacFailed
 }
 
 // Kamf Derivation function defined in TS 33.501 Annex A.7
@@ -502,7 +504,7 @@ func (ue *AmfUe) DerivateKamf() {
 // Algorithm key Derivation function defined in TS 33.501 Annex A.9
 func (ue *AmfUe) DerivateAlgKey() {
 	// Security Key
-	P0 := []byte{security.NNASEncAlg}
+	P0 := []byte{message.NNASEncAlg}
 	L0 := ueauth.KDFLen(P0)
 	P1 := []byte{ue.CipheringAlg}
 	L1 := ueauth.KDFLen(P1)
@@ -520,7 +522,7 @@ func (ue *AmfUe) DerivateAlgKey() {
 	copy(ue.KnasEnc[:], kenc[16:32])
 
 	// Integrity Key
-	P0 = []byte{security.NNASIntAlg}
+	P0 = []byte{message.NNASIntAlg}
 	L0 = ueauth.KDFLen(P0)
 	P1 = []byte{ue.IntegrityAlg}
 	L1 = ueauth.KDFLen(P1)
@@ -535,14 +537,14 @@ func (ue *AmfUe) DerivateAlgKey() {
 
 // Access Network key Derivation function defined in TS 33.501 Annex A.9
 func (ue *AmfUe) DerivateAnKey(anType models.AccessType) {
-	accessType := security.AccessType3GPP // Defalut 3gpp
+	accessType := message.AccessType3GPP // Defalut 3gpp
 	P0 := make([]byte, 4)
 	binary.BigEndian.PutUint32(P0, ue.ULCount.Get())
 	L0 := ueauth.KDFLen(P0)
 	if anType == models.AccessType_NON_3_GPP_ACCESS {
-		accessType = security.AccessTypeNon3GPP
+		accessType = message.AccessTypeNon3GPP
 	}
-	P1 := []byte{accessType}
+	P1 := []byte{byte(accessType)}
 	L1 := ueauth.KDFLen(P1)
 
 	KamfBytes, err := hex.DecodeString(ue.Kamf)
@@ -556,9 +558,9 @@ func (ue *AmfUe) DerivateAnKey(anType models.AccessType) {
 		return
 	}
 	switch accessType {
-	case security.AccessType3GPP:
+	case message.AccessType3GPP:
 		ue.Kgnb = key
-	case security.AccessTypeNon3GPP:
+	case message.AccessTypeNon3GPP:
 		ue.Kn3iwf = key
 	}
 }
@@ -583,7 +585,7 @@ func (ue *AmfUe) DerivateNH(syncInput []byte) {
 func (ue *AmfUe) UpdateSecurityContext(anType models.AccessType) {
 	ue.DerivateAnKey(anType)
 	switch anType {
-	case models.AccessType__3_GPP_ACCESS:
+	case models.AccessType_3_GPP_ACCESS:
 		ue.DerivateNH(ue.Kgnb)
 	case models.AccessType_NON_3_GPP_ACCESS:
 		ue.DerivateNH(ue.Kn3iwf)
@@ -601,21 +603,27 @@ func (ue *AmfUe) UpdateNH() {
 }
 
 func (ue *AmfUe) SelectSecurityAlg(intOrder, encOrder []uint8) error {
-	ue.CipheringAlg = security.AlgCiphering128NEA0
-	ue.IntegrityAlg = security.AlgIntegrity128NIA0
+	ue.CipheringAlg = uint8(message.AlgCiphering128NEA0)
+	ue.IntegrityAlg = uint8(message.AlgIntegrity128NIA0)
 
 	ueSupported := uint8(0)
 	for _, intAlg := range intOrder {
 		switch intAlg {
-		case security.AlgIntegrity128NIA0:
+		case uint8(message.AlgIntegrity128NIA0):
 			// TODO: Revisit this if AMF adds explicit emergency registration support.
 			continue
-		case security.AlgIntegrity128NIA1:
-			ueSupported = ue.UESecurityCapability.GetIA1_128_5G()
-		case security.AlgIntegrity128NIA2:
-			ueSupported = ue.UESecurityCapability.GetIA2_128_5G()
-		case security.AlgIntegrity128NIA3:
-			ueSupported = ue.UESecurityCapability.GetIA3_128_5G()
+		case uint8(message.AlgIntegrity128NIA1):
+			if ue.UESecurityCapability.IA1_128_5G {
+				ueSupported = 1
+			}
+		case uint8(message.AlgIntegrity128NIA2):
+			if ue.UESecurityCapability.IA2_128_5G {
+				ueSupported = 1
+			}
+		case uint8(message.AlgIntegrity128NIA3):
+			if ue.UESecurityCapability.IA3_128_5G {
+				ueSupported = 1
+			}
 		}
 		if ueSupported == 1 {
 			ue.IntegrityAlg = intAlg
@@ -629,14 +637,22 @@ func (ue *AmfUe) SelectSecurityAlg(intOrder, encOrder []uint8) error {
 	ueSupported = uint8(0)
 	for _, encAlg := range encOrder {
 		switch encAlg {
-		case security.AlgCiphering128NEA0:
-			ueSupported = ue.UESecurityCapability.GetEA0_5G()
-		case security.AlgCiphering128NEA1:
-			ueSupported = ue.UESecurityCapability.GetEA1_128_5G()
-		case security.AlgCiphering128NEA2:
-			ueSupported = ue.UESecurityCapability.GetEA2_128_5G()
-		case security.AlgCiphering128NEA3:
-			ueSupported = ue.UESecurityCapability.GetEA3_128_5G()
+		case uint8(message.AlgCiphering128NEA0):
+			if ue.UESecurityCapability.EA05G {
+				ueSupported = 1
+			}
+		case uint8(message.AlgCiphering128NEA1):
+			if ue.UESecurityCapability.EA1_128_5G {
+				ueSupported = 1
+			}
+		case uint8(message.AlgCiphering128NEA2):
+			if ue.UESecurityCapability.EA2_128_5G {
+				ueSupported = 1
+			}
+		case uint8(message.AlgCiphering128NEA3):
+			if ue.UESecurityCapability.EA3_128_5G {
+				ueSupported = 1
+			}
 		}
 		if ueSupported == 1 {
 			ue.CipheringAlg = encAlg
@@ -683,7 +699,7 @@ func (ue *AmfUe) RemoveAmPolicyAssociation() {
 	ue.PolicyAssociationId = ""
 }
 
-func (ue *AmfUe) CopyDataFromUeContextModel(ueContext *models.UeContext) {
+func (ue *AmfUe) CopyDataFromUeContextModel(ueContext *models.Amf_Comm_UeContext) {
 	if ueContext.Supi != "" {
 		ue.Supi = ueContext.Supi
 		ue.UnauthenticatedSupi = ueContext.SupiUnauthInd
@@ -707,7 +723,7 @@ func (ue *AmfUe) CopyDataFromUeContextModel(ueContext *models.UeContext) {
 
 	if ueContext.SubUeAmbr != nil {
 		if ue.AccessAndMobilitySubscriptionData == nil {
-			ue.AccessAndMobilitySubscriptionData = new(models.AccessAndMobilitySubscriptionData)
+			ue.AccessAndMobilitySubscriptionData = new(models.Udm_SDM_AccessAndMobilitySubscriptionData)
 		}
 		if ue.AccessAndMobilitySubscriptionData.SubscribedUeAmbr == nil {
 			ue.AccessAndMobilitySubscriptionData.SubscribedUeAmbr = new(models.AmbrRm)
@@ -720,28 +736,28 @@ func (ue *AmfUe) CopyDataFromUeContextModel(ueContext *models.UeContext) {
 
 	if ueContext.SubRfsp != 0 {
 		if ue.AccessAndMobilitySubscriptionData == nil {
-			ue.AccessAndMobilitySubscriptionData = new(models.AccessAndMobilitySubscriptionData)
+			ue.AccessAndMobilitySubscriptionData = new(models.Udm_SDM_AccessAndMobilitySubscriptionData)
 		}
 		ue.AccessAndMobilitySubscriptionData.RfspIndex = ueContext.SubRfsp
 	}
 
 	if len(ueContext.RestrictedRatList) > 0 {
 		if ue.AccessAndMobilitySubscriptionData == nil {
-			ue.AccessAndMobilitySubscriptionData = new(models.AccessAndMobilitySubscriptionData)
+			ue.AccessAndMobilitySubscriptionData = new(models.Udm_SDM_AccessAndMobilitySubscriptionData)
 		}
 		ue.AccessAndMobilitySubscriptionData.RatRestrictions = ueContext.RestrictedRatList
 	}
 
 	if len(ueContext.ForbiddenAreaList) > 0 {
 		if ue.AccessAndMobilitySubscriptionData == nil {
-			ue.AccessAndMobilitySubscriptionData = new(models.AccessAndMobilitySubscriptionData)
+			ue.AccessAndMobilitySubscriptionData = new(models.Udm_SDM_AccessAndMobilitySubscriptionData)
 		}
 		ue.AccessAndMobilitySubscriptionData.ForbiddenAreas = ueContext.ForbiddenAreaList
 	}
 
 	if ueContext.ServiceAreaRestriction != nil {
 		if ue.AccessAndMobilitySubscriptionData == nil {
-			ue.AccessAndMobilitySubscriptionData = new(models.AccessAndMobilitySubscriptionData)
+			ue.AccessAndMobilitySubscriptionData = new(models.Udm_SDM_AccessAndMobilitySubscriptionData)
 		}
 		ue.AccessAndMobilitySubscriptionData.ServiceAreaRestriction = ueContext.ServiceAreaRestriction
 	}
@@ -751,7 +767,7 @@ func (ue *AmfUe) CopyDataFromUeContextModel(ueContext *models.UeContext) {
 
 		ue.NgKsi = *seafData.NgKsi
 		if seafData.KeyAmf != nil {
-			if seafData.KeyAmf.KeyType == models.KeyAmfType_KAMF {
+			if seafData.KeyAmf.KeyType == models.Amf_Comm_KeyAmfType_KAMF {
 				ue.Kamf = seafData.KeyAmf.KeyVal
 			}
 		}
@@ -776,28 +792,28 @@ func (ue *AmfUe) CopyDataFromUeContextModel(ueContext *models.UeContext) {
 
 	if len(ueContext.AmPolicyReqTriggerList) > 0 {
 		if ue.AmPolicyAssociation == nil {
-			ue.AmPolicyAssociation = new(models.PcfAmPolicyControlPolicyAssociation)
+			ue.AmPolicyAssociation = new(models.Pcf_AMPolCtrl_PolicyAssociation)
 		}
 		for _, trigger := range ueContext.AmPolicyReqTriggerList {
 			switch trigger {
-			case models.PolicyReqTrigger_LOCATION_CHANGE:
+			case models.Amf_Comm_PolicyReqTrigger_LOCATION_CHANGE:
 				ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers,
-					models.PcfAmPolicyControlRequestTrigger_LOC_CH)
-			case models.PolicyReqTrigger_PRA_CHANGE:
+					models.Pcf_AMPolCtrl_RequestTrigger_LOC_CH)
+			case models.Amf_Comm_PolicyReqTrigger_PRA_CHANGE:
 				ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers,
-					models.PcfAmPolicyControlRequestTrigger_PRA_CH)
-			case models.PolicyReqTrigger_ALLOWED_NSSAI_CHANGE:
+					models.Pcf_AMPolCtrl_RequestTrigger_PRA_CH)
+			case models.Amf_Comm_PolicyReqTrigger_ALLOWED_NSSAI_CHANGE:
 				ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers,
-					models.PcfAmPolicyControlRequestTrigger_ALLOWED_NSSAI_CH)
-			case models.PolicyReqTrigger_NWDAF_DATA_CHANGE:
+					models.Pcf_AMPolCtrl_RequestTrigger_ALLOWED_NSSAI_CH)
+			case models.Amf_Comm_PolicyReqTrigger_NWDAF_DATA_CHANGE:
 				ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers,
-					models.PcfAmPolicyControlRequestTrigger_NWDAF_DATA_CH)
-			case models.PolicyReqTrigger_SMF_SELECT_CHANGE:
+					models.Pcf_AMPolCtrl_RequestTrigger_NWDAF_DATA_CH)
+			case models.Amf_Comm_PolicyReqTrigger_SMF_SELECT_CHANGE:
 				ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers,
-					models.PcfAmPolicyControlRequestTrigger_SMF_SELECT_CH)
-			case models.PolicyReqTrigger_ACCESS_TYPE_CHANGE:
+					models.Pcf_AMPolCtrl_RequestTrigger_SMF_SELECT_CH)
+			case models.Amf_Comm_PolicyReqTrigger_ACCESS_TYPE_CHANGE:
 				ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers,
-					models.PcfAmPolicyControlRequestTrigger_ACCESS_TYPE_CH)
+					models.Pcf_AMPolCtrl_RequestTrigger_ACCESS_TYPE_CH)
 			}
 		}
 	}
@@ -820,28 +836,28 @@ func (ue *AmfUe) CopyDataFromUeContextModel(ueContext *models.UeContext) {
 
 	if len(ueContext.MmContextList) > 0 {
 		for _, mmContext := range ueContext.MmContextList {
-			if mmContext.AccessType == models.AccessType__3_GPP_ACCESS {
+			if mmContext.AccessType == models.AccessType_3_GPP_ACCESS {
 				if nasSecurityMode := mmContext.NasSecurityMode; nasSecurityMode != nil {
 					switch nasSecurityMode.IntegrityAlgorithm {
-					case models.IntegrityAlgorithm_NIA0:
-						ue.IntegrityAlg = security.AlgIntegrity128NIA0
-					case models.IntegrityAlgorithm_NIA1:
-						ue.IntegrityAlg = security.AlgIntegrity128NIA1
-					case models.IntegrityAlgorithm_NIA2:
-						ue.IntegrityAlg = security.AlgIntegrity128NIA2
-					case models.IntegrityAlgorithm_NIA3:
-						ue.IntegrityAlg = security.AlgIntegrity128NIA3
+					case models.Amf_Comm_IntegrityAlgorithm_NIA0:
+						ue.IntegrityAlg = uint8(message.AlgIntegrity128NIA0)
+					case models.Amf_Comm_IntegrityAlgorithm_NIA1:
+						ue.IntegrityAlg = uint8(message.AlgIntegrity128NIA1)
+					case models.Amf_Comm_IntegrityAlgorithm_NIA2:
+						ue.IntegrityAlg = uint8(message.AlgIntegrity128NIA2)
+					case models.Amf_Comm_IntegrityAlgorithm_NIA3:
+						ue.IntegrityAlg = uint8(message.AlgIntegrity128NIA3)
 					}
 
 					switch nasSecurityMode.CipheringAlgorithm {
-					case models.CipheringAlgorithm_NEA0:
-						ue.CipheringAlg = security.AlgCiphering128NEA0
-					case models.CipheringAlgorithm_NEA1:
-						ue.CipheringAlg = security.AlgCiphering128NEA1
-					case models.CipheringAlgorithm_NEA2:
-						ue.CipheringAlg = security.AlgCiphering128NEA2
-					case models.CipheringAlgorithm_NEA3:
-						ue.CipheringAlg = security.AlgCiphering128NEA3
+					case models.Amf_Comm_CipheringAlgorithm_NEA0:
+						ue.CipheringAlg = uint8(message.AlgCiphering128NEA0)
+					case models.Amf_Comm_CipheringAlgorithm_NEA1:
+						ue.CipheringAlg = uint8(message.AlgCiphering128NEA1)
+					case models.Amf_Comm_CipheringAlgorithm_NEA2:
+						ue.CipheringAlg = uint8(message.AlgCiphering128NEA2)
+					case models.Amf_Comm_CipheringAlgorithm_NEA3:
+						ue.CipheringAlg = uint8(message.AlgCiphering128NEA3)
 					}
 
 					if mmContext.NasDownlinkCount != 0 {
@@ -864,15 +880,17 @@ func (ue *AmfUe) CopyDataFromUeContextModel(ueContext *models.UeContext) {
 							logger.CtxLog.Error(err)
 							return
 						}
-						ue.UESecurityCapability.Buffer = buf
-						ue.UESecurityCapability.SetLen(uint8(len(buf)))
+						if err = ue.UESecurityCapability.UnmarshalBinary(buf); err != nil {
+							logger.CtxLog.Error(err)
+							return
+						}
 					}
 				}
 			}
 
 			if mmContext.AllowedNssai != nil {
 				for _, snssai := range mmContext.AllowedNssai {
-					allowedSnssai := models.AllowedSnssai{
+					allowedSnssai := models.Nssf_NSSel_AllowedSnssai{
 						AllowedSnssai: &snssai,
 					}
 					ue.AllowedNssai[mmContext.AccessType] = append(ue.AllowedNssai[mmContext.AccessType], allowedSnssai)

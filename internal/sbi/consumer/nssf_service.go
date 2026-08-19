@@ -6,7 +6,7 @@ import (
 	amf_context "github.com/free5gc/amf/internal/context"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
-	Nnssf_NSSelection "github.com/free5gc/openapi/nssf/NSSelection"
+	Nnssf_NSSelection "github.com/free5gc/openapi/nssf/NSSel"
 	sbi_metrics "github.com/free5gc/util/metrics/sbi"
 )
 
@@ -41,7 +41,10 @@ func (s *nssfService) getNSSelectionClient(uri string) *Nnssf_NSSelection.APICli
 	return client
 }
 
-func (s *nssfService) NSSelectionGetForRegistration(ue *amf_context.AmfUe, requestedNssai []models.MappingOfSnssai) (
+func (s *nssfService) NSSelectionGetForRegistration(
+	ue *amf_context.AmfUe,
+	requestedNssai []models.Nssf_NSSel_MappingOfSnssai,
+) (
 	*models.ProblemDetails, error,
 ) {
 	client := s.getNSSelectionClient(ue.NssfUri)
@@ -50,12 +53,12 @@ func (s *nssfService) NSSelectionGetForRegistration(ue *amf_context.AmfUe, reque
 	}
 
 	amfSelf := amf_context.GetSelf()
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NNSSF_NSSELECTION,
-		models.NrfNfManagementNfType_NSSF)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NNSSF_NSSELECTION,
+		models.Nrf_NFMgmt_NFType_NSSF)
 	if err != nil {
 		return nil, err
 	}
-	sliceInfo := models.SliceInfoForRegistration{
+	sliceInfo := models.Nssf_NSSel_SliceInfoForRegistration{
 		SubscribedNssai: ue.SubscribedNssai,
 	}
 
@@ -68,7 +71,7 @@ func (s *nssfService) NSSelectionGetForRegistration(ue *amf_context.AmfUe, reque
 
 	var paramOpt Nnssf_NSSelection.NSSelectionGetRequest
 
-	testNfType := models.NrfNfManagementNfType_AMF
+	testNfType := models.Nrf_NFMgmt_NFType_AMF
 
 	paramOpt = Nnssf_NSSelection.NSSelectionGetRequest{
 		NfType:                          &testNfType,
@@ -80,18 +83,18 @@ func (s *nssfService) NSSelectionGetForRegistration(ue *amf_context.AmfUe, reque
 	res, localErr := client.NetworkSliceInformationDocumentApi.NSSelectionGet(ctx,
 		&paramOpt)
 	if localErr == nil {
-		ue.NetworkSliceInfo = &res.AuthorizedNetworkSliceInfo
-		for _, allowedNssai := range res.AuthorizedNetworkSliceInfo.AllowedNssaiList {
+		ue.NetworkSliceInfo = res.Nssf_NSSel_AuthorizedNetworkSliceInfo
+		for _, allowedNssai := range res.Nssf_NSSel_AuthorizedNetworkSliceInfo.AllowedNssaiList {
 			ue.AllowedNssai[allowedNssai.AccessType] = allowedNssai.AllowedSnssaiList
 		}
-		ue.ConfiguredNssai = res.AuthorizedNetworkSliceInfo.ConfiguredNssai
+		ue.ConfiguredNssai = res.Nssf_NSSel_AuthorizedNetworkSliceInfo.ConfiguredNssai
 	} else {
-		switch apiErr := err.(type) {
+		switch apiErr := localErr.(type) {
 		// API error
 		case openapi.GenericOpenAPIError:
 			switch errModel := apiErr.Model().(type) {
 			case Nnssf_NSSelection.NSSelectionGetError:
-				return &errModel.ProblemDetails, localErr
+				return errModel.ProblemDetails, localErr
 			case error:
 				return openapi.ProblemDetailsSystemFailure(errModel.Error()), nil
 			default:
@@ -108,7 +111,7 @@ func (s *nssfService) NSSelectionGetForRegistration(ue *amf_context.AmfUe, reque
 }
 
 func (s *nssfService) NSSelectionGetForPduSession(ue *amf_context.AmfUe, snssai models.Snssai) (
-	*models.AuthorizedNetworkSliceInfo, *models.ProblemDetails, error,
+	*models.Nssf_NSSel_AuthorizedNetworkSliceInfo, *models.ProblemDetails, error,
 ) {
 	client := s.getNSSelectionClient(ue.NssfUri)
 	if client == nil {
@@ -116,12 +119,12 @@ func (s *nssfService) NSSelectionGetForPduSession(ue *amf_context.AmfUe, snssai 
 	}
 
 	amfSelf := amf_context.GetSelf()
-	sliceInfoForPduSession := models.SliceInfoForPduSession{
+	sliceInfoForPduSession := models.Nssf_NSSel_SliceInfoForPDUSession{
 		SNssai:            &snssai,
-		RoamingIndication: models.RoamingIndication_NON_ROAMING, // not support roaming
+		RoamingIndication: models.Nssf_NSSel_RoamingIndication_NON_ROAMING, // not support roaming
 	}
 
-	testNfType := models.NrfNfManagementNfType_AMF
+	testNfType := models.Nrf_NFMgmt_NFType_AMF
 
 	paramOpt := Nnssf_NSSelection.NSSelectionGetRequest{
 		NfType:                        &testNfType,
@@ -130,22 +133,22 @@ func (s *nssfService) NSSelectionGetForPduSession(ue *amf_context.AmfUe, snssai 
 		Tai:                           &ue.Tai, // TS 29.531 R15.3 6.1.3.2.3.1
 	}
 
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NNSSF_NSSELECTION,
-		models.NrfNfManagementNfType_NSSF)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NNSSF_NSSELECTION,
+		models.Nrf_NFMgmt_NFType_NSSF)
 	if err != nil {
 		return nil, nil, err
 	}
 	res, localErr := client.NetworkSliceInformationDocumentApi.NSSelectionGet(ctx, &paramOpt)
 
 	if localErr == nil {
-		return &res.AuthorizedNetworkSliceInfo, nil, nil
+		return res.Nssf_NSSel_AuthorizedNetworkSliceInfo, nil, nil
 	} else {
 		switch apiErr := localErr.(type) {
 		// API error
 		case openapi.GenericOpenAPIError:
 			switch errModel := apiErr.Model().(type) {
 			case Nnssf_NSSelection.NSSelectionGetError:
-				return nil, &errModel.ProblemDetails, localErr
+				return nil, errModel.ProblemDetails, localErr
 			case error:
 				return nil, openapi.ProblemDetailsSystemFailure(errModel.Error()), nil
 			default:

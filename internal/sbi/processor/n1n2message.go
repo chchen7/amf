@@ -11,16 +11,24 @@ import (
 	"github.com/free5gc/amf/internal/logger"
 	ngap_message "github.com/free5gc/amf/internal/ngap/message"
 	callback "github.com/free5gc/amf/internal/sbi/processor/notifier"
-	"github.com/free5gc/aper"
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/ngap/ngapType"
+	"github.com/free5gc/nas/ie"
+	"github.com/free5gc/ngap/aper"
+	ngapType "github.com/free5gc/ngap/ie"
+	"github.com/free5gc/openapi/mediatype/multipart"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/util/metrics/sbi"
 )
 
+func relatedContentBytes(content *multipart.RelatedContent) []byte {
+	if content == nil {
+		return nil
+	}
+	return content.Content
+}
+
 // TS23502 4.2.3.3, 4.2.4.3, 4.3.2.2, 4.3.2.3, 4.3.3.2, 4.3.7
 func (p *Processor) HandleN1N2MessageTransferRequest(c *gin.Context,
-	n1n2MessageTransferRequest models.N1N2MessageTransferRequest,
+	n1n2MessageTransferRequest models.N1N2MessageTransferRequestBody,
 ) {
 	logger.ProducerLog.Infof("Handle N1N2 Message Transfer Request")
 
@@ -40,16 +48,14 @@ func (p *Processor) HandleN1N2MessageTransferRequest(c *gin.Context,
 		return
 	} else if n1n2MessageTransferRspData != nil {
 		switch n1n2MessageTransferRspData.Cause {
-		case models.N1N2MessageTransferCause_N1_MSG_NOT_TRANSFERRED:
+		case models.Amf_Comm_N1N2MessageTransferCause_N1_MSG_NOT_TRANSFERRED:
 			fallthrough
-		case models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED:
+		case models.Amf_Comm_N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED:
 			c.JSON(http.StatusOK, n1n2MessageTransferRspData)
 			return
-		case models.N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE:
-			headers := http.Header{
-				"Location": {locationHeader},
-			}
-			c.JSON(http.StatusAccepted, gin.H{"headers": headers, "data": n1n2MessageTransferRspData})
+		case models.Amf_Comm_N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE:
+			c.Header("Location", locationHeader)
+			c.JSON(http.StatusAccepted, n1n2MessageTransferRspData)
 			return
 		}
 	}
@@ -71,21 +77,21 @@ func (p *Processor) HandleN1N2MessageTransferRequest(c *gin.Context,
 //
 // see TS 29.518 6.1.3.5.3.1 for more details.
 func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri string,
-	n1n2MessageTransferRequest models.N1N2MessageTransferRequest) (
-	n1n2MessageTransferRspData *models.N1N2MessageTransferRspData,
+	n1n2MessageTransferRequest models.N1N2MessageTransferRequestBody) (
+	n1n2MessageTransferRspData *models.Amf_Comm_N1N2MessageTransferRspData,
 	locationHeader string, problemDetails *models.ProblemDetails,
-	transferErr *models.N1N2MessageTransferError,
+	transferErr *models.Amf_Comm_N1N2MessageTransferError,
 ) {
 	var (
 		requestData = n1n2MessageTransferRequest.JsonData
-		n2Info      = n1n2MessageTransferRequest.BinaryDataN2Information
-		n1Msg       = n1n2MessageTransferRequest.BinaryDataN1Message
+		n2Info      = relatedContentBytes(n1n2MessageTransferRequest.BinaryDataN2Information)
+		n1Msg       = relatedContentBytes(n1n2MessageTransferRequest.BinaryDataN1Message)
 
 		ue        *context.AmfUe
 		ok        bool
 		smContext *context.SmContext
 		n1MsgType uint8
-		anType    = models.AccessType__3_GPP_ACCESS
+		anType    = models.AccessType_3_GPP_ACCESS
 	)
 
 	amfSelf := context.GetSelf()
@@ -104,9 +110,9 @@ func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri stri
 
 	if requestData.N1MessageContainer != nil {
 		switch requestData.N1MessageContainer.N1MessageClass {
-		case models.N1MessageClass_SM:
+		case models.Amf_Comm_N1MessageClass_SM:
 			ue.ProducerLog.Debugf("Receive N1 SM Message (PDU Session ID: %d)", requestData.PduSessionId)
-			n1MsgType = nasMessage.PayloadContainerTypeN1SMInfo
+			n1MsgType = ie.PayloadCntrType_N1SMInfo
 			if smContext, ok = ue.SmContextFindByPDUSessionID(requestData.PduSessionId); !ok {
 				ue.ProducerLog.Errorf("SmContext[PDU Session ID:%d] not found", requestData.PduSessionId)
 				problemDetails = &models.ProblemDetails{
@@ -117,19 +123,19 @@ func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri stri
 			} else {
 				anType = smContext.AccessType()
 			}
-		case models.N1MessageClass_SMS:
-			n1MsgType = nasMessage.PayloadContainerTypeSMS
-		case models.N1MessageClass_LPP:
-			n1MsgType = nasMessage.PayloadContainerTypeLPP
-		case models.N1MessageClass_UPDP:
-			n1MsgType = nasMessage.PayloadContainerTypeUEPolicy
+		case models.Amf_Comm_N1MessageClass_SMS:
+			n1MsgType = ie.PayloadCntrType_SMS
+		case models.Amf_Comm_N1MessageClass_LPP:
+			n1MsgType = ie.PayloadCntrType_LPP
+		case models.Amf_Comm_N1MessageClass_UPDP:
+			n1MsgType = ie.PayloadCntrType_UEPolicy
 		default:
 		}
 	}
 
 	if requestData.N2InfoContainer != nil {
 		switch requestData.N2InfoContainer.N2InformationClass {
-		case models.N2InformationClass_SM:
+		case models.Amf_Comm_N2InformationClass_SM:
 			ue.ProducerLog.Debugf("Receive N2 SM Message (PDU Session ID: %d)", requestData.PduSessionId)
 			if smContext == nil {
 				if smContext, ok = ue.SmContextFindByPDUSessionID(requestData.PduSessionId); !ok {
@@ -159,7 +165,7 @@ func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri stri
 	switch onGoing.Procedure {
 	case context.OnGoingProcedurePaging:
 		if requestData.Ppi == 0 || (onGoing.Ppi != 0 && onGoing.Ppi <= requestData.Ppi) {
-			transferErr = new(models.N1N2MessageTransferError)
+			transferErr = new(models.Amf_Comm_N1N2MessageTransferError)
 			transferErr.Error = &models.ProblemDetails{
 				Status: http.StatusConflict,
 				Cause:  "HIGHER_PRIORITY_REQUEST_ONGOING",
@@ -167,16 +173,16 @@ func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri stri
 			return nil, "", nil, transferErr
 		}
 		ue.StopT3513()
-		callback.SendN1N2TransferFailureNotification(ue, models.N1N2MessageTransferCause_UE_NOT_RESPONDING)
+		callback.SendN1N2TransferFailureNotification(ue, models.Amf_Comm_N1N2MessageTransferCause_UE_NOT_RESPONDING)
 	case context.OnGoingProcedureRegistration:
-		transferErr = new(models.N1N2MessageTransferError)
+		transferErr = new(models.Amf_Comm_N1N2MessageTransferError)
 		transferErr.Error = &models.ProblemDetails{
 			Status: http.StatusConflict,
 			Cause:  "TEMPORARY_REJECT_REGISTRATION_ONGOING",
 		}
 		return nil, "", nil, transferErr
 	case context.OnGoingProcedureN2Handover:
-		transferErr = new(models.N1N2MessageTransferError)
+		transferErr = new(models.Amf_Comm_N1N2MessageTransferError)
 		transferErr.Error = &models.ProblemDetails{
 			Status: http.StatusConflict,
 			Cause:  "TEMPORARY_REJECT_HANDOVER_ONGOING",
@@ -184,7 +190,7 @@ func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri stri
 		return nil, "", nil, transferErr
 	}
 
-	var smInfo *models.N2SmInformation
+	var smInfo *models.Amf_Comm_N2SmInformation
 	if n2Info != nil {
 		if requestData.N2InfoContainer == nil ||
 			requestData.N2InfoContainer.SmInfo == nil ||
@@ -222,8 +228,8 @@ func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri stri
 			if n2Info == nil {
 				ue.ProducerLog.Debug("Forward N1 Message to UE")
 				ngap_message.SendDownlinkNasTransport(ue.RanUe[anType], nasPdu, nil)
-				n1n2MessageTransferRspData = new(models.N1N2MessageTransferRspData)
-				n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
+				n1n2MessageTransferRspData = new(models.Amf_Comm_N1N2MessageTransferRspData)
+				n1n2MessageTransferRspData.Cause = models.Amf_Comm_N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
 				return n1n2MessageTransferRspData, "", nil, nil
 			}
 		}
@@ -231,7 +237,7 @@ func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri stri
 		// TODO: only support transfer N2 SM information now
 		if n2Info != nil {
 			switch smInfo.N2InfoContent.NgapIeType {
-			case models.AmfCommunicationNgapIeType_PDU_RES_SETUP_REQ:
+			case models.Amf_Comm_NgapIeType_PDU_RES_SETUP_REQ:
 				ue.ProducerLog.Debugln("AMF Transfer NGAP PDU Session Resource Setup Request from SMF")
 				if smInfo.SNssai == nil {
 					problemDetails = &models.ProblemDetails{
@@ -252,24 +258,24 @@ func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri stri
 					ngap_message.SendInitialContextSetupRequest(ue, anType, nil, &list, nil, nil, nil)
 					ue.RanUe[anType].InitialContextSetup = true
 				}
-				n1n2MessageTransferRspData = new(models.N1N2MessageTransferRspData)
-				n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
+				n1n2MessageTransferRspData = new(models.Amf_Comm_N1N2MessageTransferRspData)
+				n1n2MessageTransferRspData.Cause = models.Amf_Comm_N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
 				return n1n2MessageTransferRspData, "", nil, nil
-			case models.AmfCommunicationNgapIeType_PDU_RES_MOD_REQ:
+			case models.Amf_Comm_NgapIeType_PDU_RES_MOD_REQ:
 				ue.ProducerLog.Debugln("AMF Transfer NGAP PDU Session Resource Modify Request from SMF")
 				list := ngapType.PDUSessionResourceModifyListModReq{}
 				ngap_message.AppendPDUSessionResourceModifyListModReq(&list, smInfo.PduSessionId, nasPdu, n2Info)
 				ngap_message.SendPDUSessionResourceModifyRequest(ue.RanUe[anType], list)
-				n1n2MessageTransferRspData = new(models.N1N2MessageTransferRspData)
-				n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
+				n1n2MessageTransferRspData = new(models.Amf_Comm_N1N2MessageTransferRspData)
+				n1n2MessageTransferRspData.Cause = models.Amf_Comm_N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
 				return n1n2MessageTransferRspData, "", nil, nil
-			case models.AmfCommunicationNgapIeType_PDU_RES_REL_CMD:
+			case models.Amf_Comm_NgapIeType_PDU_RES_REL_CMD:
 				ue.ProducerLog.Debugln("AMF Transfer NGAP PDU Session Resource Release Command from SMF")
 				list := ngapType.PDUSessionResourceToReleaseListRelCmd{}
 				ngap_message.AppendPDUSessionResourceToReleaseListRelCmd(&list, smInfo.PduSessionId, n2Info)
 				ngap_message.SendPDUSessionResourceReleaseCommand(ue.RanUe[anType], nasPdu, list)
-				n1n2MessageTransferRspData = new(models.N1N2MessageTransferRspData)
-				n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
+				n1n2MessageTransferRspData = new(models.Amf_Comm_N1N2MessageTransferRspData)
+				n1n2MessageTransferRspData.Cause = models.Amf_Comm_N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
 				return n1n2MessageTransferRspData, "", nil, nil
 			default:
 				ue.ProducerLog.Errorf("NGAP IE Type[%s] is not supported for SmInfo", smInfo.N2InfoContent.NgapIeType)
@@ -305,8 +311,8 @@ func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri stri
 	}
 	// 409: transfer a N2 PDU Session Resource Release Command to a 5G-AN and if the UE is in CM-IDLE
 	if n2Info != nil &&
-		smInfo.N2InfoContent.NgapIeType == models.AmfCommunicationNgapIeType_PDU_RES_REL_CMD {
-		transferErr = new(models.N1N2MessageTransferError)
+		smInfo.N2InfoContent.NgapIeType == models.Amf_Comm_NgapIeType_PDU_RES_REL_CMD {
+		transferErr = new(models.Amf_Comm_N1N2MessageTransferError)
 		transferErr.Error = &models.ProblemDetails{
 			Status: http.StatusConflict,
 			Cause:  "UE_IN_CM_IDLE_STATE",
@@ -314,8 +320,8 @@ func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri stri
 		return nil, "", nil, transferErr
 	}
 	// 504: the UE in MICO mode or the UE is only registered over Non-3GPP access and its state is CM-IDLE
-	if !ue.State[models.AccessType__3_GPP_ACCESS].Is(context.Registered) {
-		transferErr = new(models.N1N2MessageTransferError)
+	if !ue.State[models.AccessType_3_GPP_ACCESS].Is(context.Registered) {
+		transferErr = new(models.Amf_Comm_N1N2MessageTransferError)
 		transferErr.Error = &models.ProblemDetails{
 			Status: http.StatusGatewayTimeout,
 			Cause:  "UE_NOT_REACHABLE",
@@ -323,7 +329,7 @@ func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri stri
 		return nil, "", nil, transferErr
 	}
 
-	n1n2MessageTransferRspData = new(models.N1N2MessageTransferRspData)
+	n1n2MessageTransferRspData = new(models.Amf_Comm_N1N2MessageTransferRspData)
 
 	var pagingPriority *ngapType.PagingPriority
 
@@ -343,11 +349,11 @@ func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri stri
 
 	// Case A (UE is CM-IDLE in 3GPP access and the associated access type is 3GPP access)
 	// in subclause 5.2.2.3.1.2 of TS29518
-	if anType == models.AccessType__3_GPP_ACCESS {
+	if anType == models.AccessType_3_GPP_ACCESS {
 		if requestData.SkipInd && n2Info == nil {
-			n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_N1_MSG_NOT_TRANSFERRED
+			n1n2MessageTransferRspData.Cause = models.Amf_Comm_N1N2MessageTransferCause_N1_MSG_NOT_TRANSFERRED
 		} else {
-			n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE
+			n1n2MessageTransferRspData.Cause = models.Amf_Comm_N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE
 			message := context.N1N2Message{
 				Request:     n1n2MessageTransferRequest,
 				Status:      n1n2MessageTransferRspData.Cause,
@@ -375,13 +381,13 @@ func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri stri
 	} else {
 		// Case B (UE is CM-IDLE in Non-3GPP access but CM-CONNECTED in 3GPP access and the associated
 		// access type is Non-3GPP access)in subclause 5.2.2.3.1.2 of TS29518
-		if ue.CmConnect(models.AccessType__3_GPP_ACCESS) {
+		if ue.CmConnect(models.AccessType_3_GPP_ACCESS) {
 			if n2Info == nil {
-				n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
-				gmm_message.SendDLNASTransport(ue.RanUe[models.AccessType__3_GPP_ACCESS],
-					nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, requestData.PduSessionId, 0, nil, 0)
+				n1n2MessageTransferRspData.Cause = models.Amf_Comm_N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
+				gmm_message.SendDLNASTransport(ue.RanUe[models.AccessType_3_GPP_ACCESS],
+					ie.PayloadCntrType_N1SMInfo, n1Msg, requestData.PduSessionId, 0, nil, 0)
 			} else {
-				n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE
+				n1n2MessageTransferRspData.Cause = models.Amf_Comm_N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE
 				message := context.N1N2Message{
 					Request:     n1n2MessageTransferRequest,
 					Status:      n1n2MessageTransferRspData.Cause,
@@ -393,13 +399,13 @@ func (p *Processor) N1N2MessageTransferProcedure(ueContextID string, reqUri stri
 					logger.GmmLog.Errorf("Build Notification failed : %s", err.Error())
 					return n1n2MessageTransferRspData, locationHeader, problemDetails, transferErr
 				}
-				gmm_message.SendNotification(ue.RanUe[models.AccessType__3_GPP_ACCESS], nasMsg)
+				gmm_message.SendNotification(ue.RanUe[models.AccessType_3_GPP_ACCESS], nasMsg)
 			}
 			return n1n2MessageTransferRspData, locationHeader, nil, nil
 		} else {
 			// Case C ( UE is CM-IDLE in both Non-3GPP access and 3GPP access and the associated access ype is Non-3GPP access)
 			// in subclause 5.2.2.3.1.2 of TS29518
-			n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE
+			n1n2MessageTransferRspData.Cause = models.Amf_Comm_N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE
 			message := context.N1N2Message{
 				Request:     n1n2MessageTransferRequest,
 				Status:      n1n2MessageTransferRspData.Cause,
@@ -441,7 +447,7 @@ func (p *Processor) HandleN1N2MessageTransferStatusRequest(c *gin.Context) {
 }
 
 func (p *Processor) N1N2MessageTransferStatusProcedure(ueContextID string,
-	reqUri string) (models.N1N2MessageTransferCause,
+	reqUri string) (models.Amf_Comm_N1N2MessageTransferCause,
 	*models.ProblemDetails,
 ) {
 	amfSelf := context.GetSelf()
@@ -474,7 +480,7 @@ func (p *Processor) N1N2MessageTransferStatusProcedure(ueContextID string,
 
 // TS 29.518 5.2.2.3.3
 func (p *Processor) HandleN1N2MessageSubscribeRequest(c *gin.Context,
-	ueN1N2InfoSubscriptionCreateData models.UeN1N2InfoSubscriptionCreateData,
+	ueN1N2InfoSubscriptionCreateData models.Amf_Comm_UeN1N2InfoSubscriptionCreateData,
 ) {
 	ueContextID := c.Param("ueContextId")
 
@@ -489,8 +495,8 @@ func (p *Processor) HandleN1N2MessageSubscribeRequest(c *gin.Context,
 }
 
 func (p *Processor) N1N2MessageSubscribeProcedure(ueContextID string,
-	ueN1N2InfoSubscriptionCreateData models.UeN1N2InfoSubscriptionCreateData) (
-	*models.UeN1N2InfoSubscriptionCreatedData, *models.ProblemDetails,
+	ueN1N2InfoSubscriptionCreateData models.Amf_Comm_UeN1N2InfoSubscriptionCreateData) (
+	*models.Amf_Comm_UeN1N2InfoSubscriptionCreatedData, *models.ProblemDetails,
 ) {
 	amfSelf := context.GetSelf()
 
@@ -507,7 +513,7 @@ func (p *Processor) N1N2MessageSubscribeProcedure(ueContextID string,
 	ue.Lock.Lock()
 	defer ue.Lock.Unlock()
 
-	ueN1N2InfoSubscriptionCreatedData := new(models.UeN1N2InfoSubscriptionCreatedData)
+	ueN1N2InfoSubscriptionCreatedData := new(models.Amf_Comm_UeN1N2InfoSubscriptionCreatedData)
 
 	if newSubscriptionID, err := ue.N1N2MessageSubscribeIDGenerator.Allocate(); err != nil {
 		logger.CommLog.Errorf("Create subscriptionID Error: %+v", err)

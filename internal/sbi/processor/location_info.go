@@ -11,7 +11,7 @@ import (
 	"github.com/free5gc/util/metrics/sbi"
 )
 
-func (p *Processor) HandleProvideLocationInfoRequest(c *gin.Context, requestLocInfo models.RequestLocInfo) {
+func (p *Processor) HandleProvideLocationInfoRequest(c *gin.Context, requestLocInfo models.Amf_Loc_RequestLocInfo) {
 	logger.ProducerLog.Info("Handle Provide Location Info Request")
 
 	ueContextID := c.Param("ueContextId")
@@ -25,8 +25,8 @@ func (p *Processor) HandleProvideLocationInfoRequest(c *gin.Context, requestLocI
 	}
 }
 
-func (p *Processor) ProvideLocationInfoProcedure(requestLocInfo models.RequestLocInfo, ueContextID string) (
-	*models.ProvideLocInfo, *models.ProblemDetails,
+func (p *Processor) ProvideLocationInfoProcedure(requestLocInfo models.Amf_Loc_RequestLocInfo, ueContextID string) (
+	*models.Amf_Loc_ProvideLocInfo, *models.ProblemDetails,
 ) {
 	amfSelf := context.GetSelf()
 
@@ -52,7 +52,7 @@ func (p *Processor) ProvideLocationInfoProcedure(requestLocInfo models.RequestLo
 		return nil, problemDetails
 	}
 
-	provideLocInfo := new(models.ProvideLocInfo)
+	provideLocInfo := new(models.Amf_Loc_ProvideLocInfo)
 
 	ranUe := ue.RanUe[anType]
 	if requestLocInfo.Req5gsLoc || requestLocInfo.ReqCurrentLoc {

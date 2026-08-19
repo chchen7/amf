@@ -7,22 +7,22 @@ import (
 
 	amf_context "github.com/free5gc/amf/internal/context"
 	"github.com/free5gc/amf/internal/logger"
-	Namf_Communication "github.com/free5gc/openapi/amf/Communication"
+	Namf_Communication "github.com/free5gc/openapi/amf/Comm"
 	"github.com/free5gc/openapi/models"
 )
 
-func callbackServiceNfType(svcName string) (models.NrfNfManagementNfType, bool) {
+func callbackServiceNfType(svcName string) (models.Nrf_NFMgmt_NFType, bool) {
 	switch {
 	case strings.HasPrefix(svcName, "npcf"):
-		return models.NrfNfManagementNfType_PCF, true
+		return models.Nrf_NFMgmt_NFType_PCF, true
 	case strings.HasPrefix(svcName, "nsmf"):
-		return models.NrfNfManagementNfType_SMF, true
+		return models.Nrf_NFMgmt_NFType_SMF, true
 	case strings.HasPrefix(svcName, "nudm"):
-		return models.NrfNfManagementNfType_UDM, true
+		return models.Nrf_NFMgmt_NFType_UDM, true
 	case strings.HasPrefix(svcName, "nausf"):
-		return models.NrfNfManagementNfType_AUSF, true
+		return models.Nrf_NFMgmt_NFType_AUSF, true
 	case strings.HasPrefix(svcName, "namf"):
-		return models.NrfNfManagementNfType_AMF, true
+		return models.Nrf_NFMgmt_NFType_AMF, true
 	default:
 		return "", false
 	}
@@ -32,12 +32,12 @@ func SendAmfStatusChangeNotify(amfStatus string, guamiList []models.Guami) {
 	amfSelf := amf_context.GetSelf()
 
 	amfSelf.AMFStatusSubscriptions.Range(func(key, value interface{}) bool {
-		subscriptionData := value.(models.AmfCommunicationSubscriptionData)
+		subscriptionData := value.(models.Amf_Comm_SubscriptionData)
 
 		configuration := Namf_Communication.NewConfiguration()
 		client := Namf_Communication.NewAPIClient(configuration)
-		amfStatusNotification := models.AmfStatusChangeNotification{}
-		amfStatusInfo := models.AmfStatusInfo{}
+		amfStatusNotification := models.Amf_Comm_AmfStatusChangeNotification{}
+		amfStatusInfo := models.Amf_Comm_AmfStatusInfo{}
 
 		for _, guami := range guamiList {
 			for _, subGumi := range subscriptionData.GuamiList {
@@ -48,8 +48,8 @@ func SendAmfStatusChangeNotify(amfStatus string, guamiList []models.Guami) {
 			}
 		}
 
-		amfStatusInfo = models.AmfStatusInfo{
-			StatusChange:     (models.StatusChange)(amfStatus),
+		amfStatusInfo = models.Amf_Comm_AmfStatusInfo{
+			StatusChange:     (models.Amf_Comm_StatusChange)(amfStatus),
 			TargetAmfRemoval: "",
 			TargetAmfFailure: "",
 		}
@@ -58,15 +58,15 @@ func SendAmfStatusChangeNotify(amfStatus string, guamiList []models.Guami) {
 		uri := subscriptionData.AmfStatusUri
 
 		amfStatusNotificationReq := Namf_Communication.AmfStatusChangeNotifyRequest{
-			AmfStatusChangeNotification: &amfStatusNotification,
+			RequestBody: &amfStatusNotification,
 		}
 
-		var callbackSvcName models.ServiceName
-		var targetNFType models.NrfNfManagementNfType
+		var callbackSvcName models.Nrf_NFMgmt_ServiceName
+		var targetNFType models.Nrf_NFMgmt_NFType
 		if parsedURI, err := url.Parse(uri); err == nil {
 			seg := strings.SplitN(strings.TrimPrefix(parsedURI.Path, "/"), "/", 2)[0]
 			if nfType, ok := callbackServiceNfType(seg); ok {
-				callbackSvcName = models.ServiceName(seg)
+				callbackSvcName = models.Nrf_NFMgmt_ServiceName(seg)
 				targetNFType = nfType
 			}
 		}
@@ -78,7 +78,7 @@ func SendAmfStatusChangeNotify(amfStatus string, guamiList []models.Guami) {
 		}
 
 		logger.ProducerLog.Infof("[AMF] Send Amf Status Change Notify to %s", uri)
-		_, err = client.IndividualSubscriptionDocumentApi.
+		_, err = client.SubscriptionsCollectionCollectionApi.
 			AmfStatusChangeNotify(ctx, uri, &amfStatusNotificationReq)
 		if err != nil {
 			HttpLog.Errorln(err.Error())

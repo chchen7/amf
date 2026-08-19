@@ -9,9 +9,9 @@ import (
 	"sync"
 
 	amf_context "github.com/free5gc/amf/internal/context"
-	"github.com/free5gc/nas/nasType"
+	"github.com/free5gc/nas/ie"
 	"github.com/free5gc/openapi"
-	Nausf_UEAuthentication "github.com/free5gc/openapi/ausf/UEAuthentication"
+	Nausf_UEAuthentication "github.com/free5gc/openapi/ausf/UEAU"
 	"github.com/free5gc/openapi/models"
 	sbi_metrics "github.com/free5gc/util/metrics/sbi"
 )
@@ -48,8 +48,8 @@ func (s *nausfService) getUEAuthenticationClient(uri string) *Nausf_UEAuthentica
 }
 
 func (s *nausfService) SendUEAuthenticationAuthenticateRequest(ue *amf_context.AmfUe,
-	resynchronizationInfo *models.ResynchronizationInfo,
-) (*models.UeAuthenticationCtx, *models.ProblemDetails, error) {
+	resynchronizationInfo *models.Udm_UEAU_ResynchronizationInfo,
+) (*models.Ausf_UEAU_UEAuthenticationCtx, *models.ProblemDetails, error) {
 	client := s.getUEAuthenticationClient(ue.AusfUri)
 	if client == nil {
 		return nil, nil, openapi.ReportError("ausf not found")
@@ -58,7 +58,7 @@ func (s *nausfService) SendUEAuthenticationAuthenticateRequest(ue *amf_context.A
 	amfSelf := amf_context.GetSelf()
 	servedGuami := amfSelf.ServedGuamiList[0]
 
-	var authInfo models.AuthenticationInfo
+	var authInfo models.Ausf_UEAU_AuthenticationInfo
 	authInfo.SupiOrSuci = ue.Suci
 	if mnc, err := strconv.Atoi(servedGuami.PlmnId.Mnc); err != nil {
 		return nil, nil, err
@@ -68,25 +68,28 @@ func (s *nausfService) SendUEAuthenticationAuthenticateRequest(ue *amf_context.A
 	if resynchronizationInfo != nil {
 		authInfo.ResynchronizationInfo = resynchronizationInfo
 	}
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NAUSF_AUTH, models.NrfNfManagementNfType_AUSF)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(
+		models.Nrf_NFMgmt_ServiceName_NAUSF_AUTH,
+		models.Nrf_NFMgmt_NFType_AUSF,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	authReq := Nausf_UEAuthentication.UeAuthenticationsPostRequest{
-		AuthenticationInfo: &authInfo,
+		RequestBody: &authInfo,
 	}
 
 	res, localErr := client.DefaultApi.UeAuthenticationsPost(ctx, &authReq)
 	if localErr == nil {
-		return &res.UeAuthenticationCtx, nil, nil
+		return res.Ausf_UEAU_UEAuthenticationCtx, nil, nil
 	} else {
 		switch errType := localErr.(type) {
 		// API error
 		case openapi.GenericOpenAPIError:
 			switch errModel := errType.Model().(type) {
 			case Nausf_UEAuthentication.UeAuthenticationsPostError:
-				return nil, &errModel.ProblemDetails, localErr
+				return nil, errModel.ProblemDetails, localErr
 			case error:
 				return nil, openapi.ProblemDetailsSystemFailure(errModel.Error()), nil
 			default:
@@ -101,7 +104,7 @@ func (s *nausfService) SendUEAuthenticationAuthenticateRequest(ue *amf_context.A
 }
 
 func (s *nausfService) SendAuth5gAkaConfirmRequest(ue *amf_context.AmfUe, resStar string) (
-	*models.ConfirmationDataResponse, *models.ProblemDetails, error,
+	*models.Ausf_UEAU_ConfirmationDataResponse, *models.ProblemDetails, error,
 ) {
 	confirmUri, ausfUri, err := resolveAUSFConfirmationURI(ue, "5g-aka")
 	if err != nil {
@@ -113,7 +116,10 @@ func (s *nausfService) SendAuth5gAkaConfirmRequest(ue *amf_context.AmfUe, resSta
 		return nil, nil, openapi.ReportError("ausf not found")
 	}
 
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NAUSF_AUTH, models.NrfNfManagementNfType_AUSF)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(
+		models.Nrf_NFMgmt_ServiceName_NAUSF_AUTH,
+		models.Nrf_NFMgmt_NFType_AUSF,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -130,21 +136,21 @@ func (s *nausfService) SendAuth5gAkaConfirmRequest(ue *amf_context.AmfUe, resSta
 
 	confirmData := &Nausf_UEAuthentication.UeAuthenticationsAuthCtxId5gAkaConfirmationPutRequest{
 		AuthCtxId: &authctxId,
-		ConfirmationData: &models.ConfirmationData{
-			ResStar: resStar,
+		RequestBody: &models.Ausf_UEAU_ConfirmationData{
+			ResStar: &resStar,
 		},
 	}
 	confirmResult, localErr := client.DefaultApi.UeAuthenticationsAuthCtxId5gAkaConfirmationPut(
 		ctx, confirmData)
 	if localErr == nil {
-		return &confirmResult.ConfirmationDataResponse, nil, nil
+		return confirmResult.Ausf_UEAU_ConfirmationDataResponse, nil, nil
 	} else {
 		switch err := localErr.(type) {
 		// API error
 		case openapi.GenericOpenAPIError:
 			switch errModel := err.Model().(type) {
 			case Nausf_UEAuthentication.UeAuthenticationsAuthCtxId5gAkaConfirmationPutError:
-				return nil, &errModel.ProblemDetails, localErr
+				return nil, errModel.ProblemDetails, localErr
 			case error:
 				return nil, openapi.ProblemDetailsSystemFailure(errModel.Error()), nil
 			default:
@@ -158,8 +164,8 @@ func (s *nausfService) SendAuth5gAkaConfirmRequest(ue *amf_context.AmfUe, resSta
 	}
 }
 
-func (s *nausfService) SendEapAuthConfirmRequest(ue *amf_context.AmfUe, eapMsg nasType.EAPMessage) (
-	response *models.EapSession, problemDetails *models.ProblemDetails, err1 error,
+func (s *nausfService) SendEapAuthConfirmRequest(ue *amf_context.AmfUe, eapMsg ie.EAPMsg) (
+	response *models.Ausf_UEAU_EapSession, problemDetails *models.ProblemDetails, err1 error,
 ) {
 	confirmUri, ausfUri, err := resolveAUSFConfirmationURI(ue, "eap-session")
 	if err != nil {
@@ -184,11 +190,14 @@ func (s *nausfService) SendEapAuthConfirmRequest(ue *amf_context.AmfUe, eapMsg n
 
 	eapSessionReq := Nausf_UEAuthentication.EapAuthMethodRequest{
 		AuthCtxId: &authctxId,
-		EapSession: &models.EapSession{
-			EapPayload: base64.StdEncoding.EncodeToString(eapMsg.GetEAPMessage()),
+		RequestBody: &models.Ausf_UEAU_EapSession{
+			EapPayload: base64.StdEncoding.EncodeToString(eapMsg.Eap),
 		},
 	}
-	ctx, _, err := amf_context.GetSelf().GetTokenCtx(models.ServiceName_NAUSF_AUTH, models.NrfNfManagementNfType_AUSF)
+	ctx, _, err := amf_context.GetSelf().GetTokenCtx(
+		models.Nrf_NFMgmt_ServiceName_NAUSF_AUTH,
+		models.Nrf_NFMgmt_NFType_AUSF,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -196,7 +205,7 @@ func (s *nausfService) SendEapAuthConfirmRequest(ue *amf_context.AmfUe, eapMsg n
 	eapSession, localErr := client.DefaultApi.EapAuthMethod(ctx, &eapSessionReq)
 
 	if localErr == nil {
-		response = &eapSession.EapSession
+		response = eapSession.Ausf_UEAU_EapSession
 	} else {
 		err = localErr
 		switch errType := localErr.(type) {
@@ -204,7 +213,7 @@ func (s *nausfService) SendEapAuthConfirmRequest(ue *amf_context.AmfUe, eapMsg n
 		case openapi.GenericOpenAPIError:
 			switch errModel := errType.Model().(type) {
 			case Nausf_UEAuthentication.EapAuthMethodError:
-				problemDetails = &errModel.ProblemDetails
+				problemDetails = errModel.ProblemDetails
 			case error:
 				problemDetails = openapi.ProblemDetailsSystemFailure(errModel.Error())
 			default:

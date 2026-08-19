@@ -14,13 +14,13 @@ import (
 	"github.com/free5gc/amf/internal/logger"
 	amf_nas "github.com/free5gc/amf/internal/nas"
 	ngap_message "github.com/free5gc/amf/internal/ngap/message"
-	"github.com/free5gc/ngap/ngapType"
+	ngapType "github.com/free5gc/ngap/message"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/util/metrics/sbi"
 )
 
 func (p *Processor) HandleSmContextStatusNotify(c *gin.Context,
-	smContextStatusNotification models.SmfPduSessionSmContextStatusNotification,
+	smContextStatusNotification models.Smf_PDUSess_SmContextStatusNotification,
 ) {
 	logger.ProducerLog.Infoln("[AMF] Handle SmContext Status Notify")
 
@@ -43,7 +43,7 @@ func (p *Processor) HandleSmContextStatusNotify(c *gin.Context,
 }
 
 func (p *Processor) SmContextStatusNotifyProcedure(supi string, pduSessionID int32,
-	smContextStatusNotification models.SmfPduSessionSmContextStatusNotification,
+	smContextStatusNotification models.Smf_PDUSess_SmContextStatusNotification,
 ) *models.ProblemDetails {
 	amfSelf := context.GetSelf()
 
@@ -82,7 +82,7 @@ func (p *Processor) SmContextStatusNotifyProcedure(supi string, pduSessionID int
 		return problemDetails
 	}
 
-	if smContextStatusNotification.StatusInfo.ResourceStatus == models.ResourceStatus_RELEASED {
+	if smContextStatusNotification.StatusInfo.ResourceStatus == models.Smf_PDUSess_ResourceStatus_RELEASED {
 		if smContext.PduSessionIDDuplicated() {
 			ue.ProducerLog.Infof("Local release duplicated SmContext[%d]", pduSessionID)
 			smContext.SetDuplicatedPduSessionID(false)
@@ -105,7 +105,7 @@ func (p *Processor) SmContextStatusNotifyProcedure(supi string, pduSessionID int
 }
 
 func (p *Processor) HandleAmPolicyControlUpdateNotifyUpdate(c *gin.Context,
-	policyUpdate models.PcfAmPolicyControlPolicyUpdate,
+	policyUpdate models.Pcf_AMPolCtrl_PolicyUpdate,
 ) {
 	logger.ProducerLog.Infoln("Handle AM Policy Control Update Notify [Policy update notification]")
 
@@ -121,7 +121,7 @@ func (p *Processor) HandleAmPolicyControlUpdateNotifyUpdate(c *gin.Context,
 }
 
 func (p *Processor) AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
-	policyUpdate models.PcfAmPolicyControlPolicyUpdate,
+	policyUpdate models.Pcf_AMPolCtrl_PolicyUpdate,
 ) *models.ProblemDetails {
 	amfSelf := context.GetSelf()
 
@@ -142,7 +142,7 @@ func (p *Processor) AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
 	ue.RequestTriggerLocationChange = false
 
 	for _, trigger := range policyUpdate.Triggers {
-		if trigger == models.PcfAmPolicyControlRequestTrigger_LOC_CH {
+		if trigger == models.Pcf_AMPolCtrl_RequestTrigger_LOC_CH {
 			ue.RequestTriggerLocationChange = true
 		}
 		// if trigger == models.RequestTrigger_PRA_CH {
@@ -179,16 +179,16 @@ func (p *Processor) AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
 			}
 
 			// UE is CM-Connected State
-			if ue.CmConnect(models.AccessType__3_GPP_ACCESS) {
+			if ue.CmConnect(models.AccessType_3_GPP_ACCESS) {
 				gmm_message.SendConfigurationUpdateCommand(ue,
-					models.AccessType__3_GPP_ACCESS,
+					models.AccessType_3_GPP_ACCESS,
 					configurationUpdateCommandFlags,
 				)
 			} else {
 				// UE is CM-IDLE => paging
 				ue.ConfigurationUpdateCommandFlags = configurationUpdateCommandFlags
 
-				ue.SetOnGoing(models.AccessType__3_GPP_ACCESS, &context.OnGoing{
+				ue.SetOnGoing(models.AccessType_3_GPP_ACCESS, &context.OnGoing{
 					Procedure: context.OnGoingProcedurePaging,
 				})
 
@@ -206,7 +206,7 @@ func (p *Processor) AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
 
 // TS 29.507 4.2.4.3
 func (p *Processor) HandleAmPolicyControlUpdateNotifyTerminate(c *gin.Context,
-	terminationNotification models.PcfAmPolicyControlTerminationNotification,
+	terminationNotification models.Pcf_AMPolCtrl_TerminationNotification,
 ) {
 	logger.ProducerLog.Infoln("Handle AM Policy Control Update Notify [Request for termination of the policy association]")
 
@@ -222,7 +222,7 @@ func (p *Processor) HandleAmPolicyControlUpdateNotifyTerminate(c *gin.Context,
 }
 
 func (p *Processor) AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID string,
-	terminationNotification models.PcfAmPolicyControlTerminationNotification,
+	terminationNotification models.Pcf_AMPolCtrl_TerminationNotification,
 ) *models.ProblemDetails {
 	amfSelf := context.GetSelf()
 
@@ -261,7 +261,7 @@ func (p *Processor) AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID stri
 }
 
 // TS 23.502 4.2.2.2.3 Registration with AMF re-allocation
-func (p *Processor) HandleN1MessageNotify(c *gin.Context, n1MessageNotify models.N1MessageNotifyRequest) {
+func (p *Processor) HandleN1MessageNotify(c *gin.Context, n1MessageNotify models.N1MessageNotifyRequestBody) {
 	logger.ProducerLog.Infoln("[AMF] Handle N1 Message Notify")
 
 	problemDetails := p.N1MessageNotifyProcedure(n1MessageNotify)
@@ -273,7 +273,7 @@ func (p *Processor) HandleN1MessageNotify(c *gin.Context, n1MessageNotify models
 	}
 }
 
-func (p *Processor) N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotifyRequest) *models.ProblemDetails {
+func (p *Processor) N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotifyRequestBody) *models.ProblemDetails {
 	logger.ProducerLog.Debugf("n1MessageNotify: %+v", n1MessageNotify)
 
 	amfSelf := context.GetSelf()
@@ -378,7 +378,12 @@ func (p *Processor) N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNot
 
 		gmm_common.AttachRanUeToAmfUeAndReleaseOldIfAny(amfUe, currentRanUe)
 
-		amf_nas.HandleNAS(currentRanUe, ngapType.ProcedureCodeInitialUEMessage, n1MessageNotify.BinaryDataN1Message, true)
+		amf_nas.HandleNAS(
+			currentRanUe,
+			ngapType.ProcedureCodeInitialUEMessage,
+			n1MessageNotify.BinaryDataN1Message.Content,
+			true,
+		)
 	}()
 	return nil
 }
