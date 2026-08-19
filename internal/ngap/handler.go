@@ -1370,8 +1370,22 @@ func handlePathSwitchRequestMain(ran *context.AmfRan,
 					ranUe.Log.Warnf("Xn Handover Filter: PDU Session %d (S-NSSAI: %+v) "+
 						"not supported in Target TAI %v. Rejecting Path Switch.",
 						pduSessionID, smContext.Snssai(), targetTai.Tac)
-					pduSessionResourceReleasedItem := ngapType.PDUSessionResourceReleasedItemPSFail{}
-					pduSessionResourceReleasedItem.PDUSessionID.Value = int64(pduSessionID)
+					unsuccessfulTransfer := &ngapType.PathSwitchRequestUnsuccessfulTransfer{
+						Cause: &ngapType.Cause{
+							Choice: &ngapType.CauseTransport{
+								Value: ngapType.CauseTransportPresentTransportResourceUnavailable,
+							},
+						},
+					}
+					transferBytes, err := ngapType.MarshalBinary(unsuccessfulTransfer)
+					if err != nil {
+						ranUe.Log.Errorf("Marshal PathSwitchRequestUnsuccessfulTransfer failed: %s", err.Error())
+						continue
+					}
+					pduSessionResourceReleasedItem := ngapType.PDUSessionResourceReleasedItemPSFail{
+						PDUSessionID:                          &ngapType.PDUSessionID{Value: int64(pduSessionID)},
+						PathSwitchRequestUnsuccessfulTransfer: octetStringPointer(transferBytes),
+					}
 					pduSessionResourceReleasedListPSFail.List = append(pduSessionResourceReleasedListPSFail.List,
 						pduSessionResourceReleasedItem)
 					continue

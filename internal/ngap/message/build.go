@@ -282,6 +282,9 @@ func BuildInitialContextSetupRequest(
 	if !ok || ranUe == nil {
 		return nil, fmt.Errorf("ranUe for %s is nil", anType)
 	}
+	if setupList != nil && len(setupList.List) == 0 {
+		setupList = nil
+	}
 	request := &ngapMessage.InitialContextSetupRequest{
 		AMFUENGAPID: &ngapIE.AMFUENGAPID{Value: ranUe.AmfUeNgapId},
 		RANUENGAPID: &ngapIE.RANUENGAPID{Value: ranUe.RanUeNgapId},
