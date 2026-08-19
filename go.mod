@@ -9,7 +9,7 @@ require (
 	github.com/free5gc/ngap v1.1.4-0.20260707055048-c26215fe47ef
 	github.com/free5gc/openapi v1.2.5-0.20260716090436-13797f3a9f13
 	github.com/free5gc/sctp v1.1.3-0.20260707033444-1d50775f182e
-	github.com/free5gc/util v1.3.2
+	github.com/free5gc/util v1.3.3-0.20260806004242-cfe683dea97d
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0
@@ -22,9 +22,6 @@ require (
 	go.uber.org/mock v0.4.0
 	gopkg.in/yaml.v2 v2.4.0
 )
-
-// PR #47 is not yet reachable as a github.com/free5gc/util revision.
-replace github.com/free5gc/util => github.com/DBGR18/util v1.3.2-0.20260713172215-d36af1aaf0ec
 
 require (
 	github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1 // indirect

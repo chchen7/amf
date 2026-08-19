@@ -1,5 +1,3 @@
-github.com/DBGR18/util v1.3.2-0.20260713172215-d36af1aaf0ec h1:rA2NVwAO/FBqZ0ljN+pd0rk/BN6e7RCNmk2gineFZ98=
-github.com/DBGR18/util v1.3.2-0.20260713172215-d36af1aaf0ec/go.mod h1:ihddsLLECOOIkYzAlgkK3CVXmQh9HTGEagaJT9Rv/+I=
 github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1 h1:+JkXLHME8vLJafGhOH4aoV2Iu8bR55nU6iKMVfYVLjY=
 github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1/go.mod h1:nuudZmJhzWtx2212z+pkuy7B6nkBqa+xwNXZHL1j8cg=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 h1:DklsrG3dyBCFEj5IhUbnKptjxatkF07cF2ak3yi77so=
@@ -31,6 +29,8 @@ github.com/free5gc/openapi v1.2.5-0.20260716090436-13797f3a9f13 h1:VOgmUHYUvAMhF
 github.com/free5gc/openapi v1.2.5-0.20260716090436-13797f3a9f13/go.mod h1:ggzAcwqg4JotSSdUvFFFruK6M0Yyr6mhBOCFaDHZmdE=
 github.com/free5gc/sctp v1.1.3-0.20260707033444-1d50775f182e h1:jrV1fRZTQKnjGg3sikEMGOiIWOsooXygaCr1YruJphY=
 github.com/free5gc/sctp v1.1.3-0.20260707033444-1d50775f182e/go.mod h1:wOvct9P1T6DGk1fxkleF7zeTHsU8ZKxKzewu2ciZh/4=
+github.com/free5gc/util v1.3.3-0.20260806004242-cfe683dea97d h1:99emsjGuOtLdVEfReF3RqXnsQ+rYsFdVBzzXqKy4vB8=
+github.com/free5gc/util v1.3.3-0.20260806004242-cfe683dea97d/go.mod h1:ihddsLLECOOIkYzAlgkK3CVXmQh9HTGEagaJT9Rv/+I=
 github.com/gabriel-vasile/mimetype v1.4.3 h1:in2uUcidCuFcDKtdcBxlR0rJ1+fsokWf+uqxgUFjbI0=
 github.com/gabriel-vasile/mimetype v1.4.3/go.mod h1:d8uq/6HKRL6CGdk+aubisF/M5GcPfT7nKyLpA0lbSSk=
 github.com/gin-contrib/sse v0.1.0 h1:Y/yl/+YNO8GZSjAhjMsSuLt29uWRFHdHYUb5lYOV9qE=

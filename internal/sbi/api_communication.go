@@ -141,7 +141,7 @@ func (s *Server) HTTPAMFStatusChangeSubscribeModify(c *gin.Context) {
 		problemDetail := models.ProblemDetails{
 			Title:  "System failure",
 			Status: http.StatusInternalServerError,
-			Detail: err.Error(),
+			Detail: "Failed to read request body",
 			Cause:  "SYSTEM_FAILURE",
 		}
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, problemDetail.Cause)
@@ -151,11 +151,11 @@ func (s *Server) HTTPAMFStatusChangeSubscribeModify(c *gin.Context) {
 
 	err = openapi.Deserialize(&subscriptionData, requestBody, applicationjson)
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "Failed to deserialize request body",
 		}
 		logger.CommLog.Errorln(problemDetail)
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
@@ -180,7 +180,7 @@ func (s *Server) HTTPCreateUEContext(c *gin.Context) {
 		problemDetail := models.ProblemDetails{
 			Title:  "System failure",
 			Status: http.StatusInternalServerError,
-			Detail: err.Error(),
+			Detail: "Failed to read request body",
 			Cause:  "SYSTEM_FAILURE",
 		}
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, problemDetail)
@@ -200,11 +200,11 @@ func (s *Server) HTTPCreateUEContext(c *gin.Context) {
 	}
 
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "Failed to deserialize request body",
 		}
 		logger.CommLog.Errorln(problemDetail)
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText((http.StatusBadRequest)))
@@ -223,7 +223,7 @@ func (s *Server) HTTPEBIAssignment(c *gin.Context) {
 		problemDetail := models.ProblemDetails{
 			Title:  "System failure",
 			Status: http.StatusInternalServerError,
-			Detail: err.Error(),
+			Detail: "Failed to read request body",
 			Cause:  "SYSTEM_FAILURE",
 		}
 		logger.CommLog.Errorf("Get Request Body error: %+v", err)
@@ -234,11 +234,11 @@ func (s *Server) HTTPEBIAssignment(c *gin.Context) {
 
 	err = openapi.Deserialize(&assignEbiData, requestBody, applicationjson)
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "Failed to deserialize request body",
 		}
 		logger.CommLog.Errorln(problemDetail)
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
@@ -258,7 +258,7 @@ func (s *Server) HTTPRegistrationStatusUpdate(c *gin.Context) {
 		problemDetail := models.ProblemDetails{
 			Title:  "System failure",
 			Status: http.StatusInternalServerError,
-			Detail: err.Error(),
+			Detail: "Failed to read request body",
 			Cause:  "SYSTEM_FAILURE",
 		}
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, problemDetail)
@@ -268,11 +268,11 @@ func (s *Server) HTTPRegistrationStatusUpdate(c *gin.Context) {
 
 	err = openapi.Deserialize(&ueRegStatusUpdateReqData, requestBody, applicationjson)
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "Failed to deserialize request body",
 		}
 		logger.CommLog.Errorln(problemDetail)
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
@@ -292,7 +292,7 @@ func (s *Server) HTTPReleaseUEContext(c *gin.Context) {
 		problemDetail := models.ProblemDetails{
 			Title:  "System failure",
 			Status: http.StatusInternalServerError,
-			Detail: err.Error(),
+			Detail: "Failed to read request body",
 			Cause:  "SYSTEM_FAILURE",
 		}
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, problemDetail)
@@ -302,11 +302,11 @@ func (s *Server) HTTPReleaseUEContext(c *gin.Context) {
 
 	err = openapi.Deserialize(&ueContextRelease, requestBody, applicationjson)
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "Failed to deserialize request body",
 		}
 		logger.CommLog.Errorln(problemDetail)
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
@@ -327,7 +327,7 @@ func (s *Server) HTTPUEContextTransfer(c *gin.Context) {
 		problemDetail := models.ProblemDetails{
 			Title:  "System failure",
 			Status: http.StatusInternalServerError,
-			Detail: err.Error(),
+			Detail: "Failed to read request body",
 			Cause:  "SYSTEM_FAILURE",
 		}
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, problemDetail)
@@ -345,11 +345,11 @@ func (s *Server) HTTPUEContextTransfer(c *gin.Context) {
 	}
 
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "Failed to deserialize request body",
 		}
 		logger.CommLog.Errorln(problemDetail)
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
@@ -380,7 +380,7 @@ func (s *Server) HTTPN1N2MessageTransfer(c *gin.Context) {
 		problemDetail := models.ProblemDetails{
 			Title:  "System failure",
 			Status: http.StatusInternalServerError,
-			Detail: err.Error(),
+			Detail: "Failed to read request body",
 			Cause:  "SYSTEM_FAILURE",
 		}
 		logger.CommLog.Errorf("Get Request Body error: %+v", err)
@@ -401,11 +401,11 @@ func (s *Server) HTTPN1N2MessageTransfer(c *gin.Context) {
 	}
 
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "Failed to deserialize request body",
 		}
 		logger.CommLog.Errorln(problemDetail)
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
@@ -428,7 +428,7 @@ func (s *Server) HTTPN1N2MessageSubscribe(c *gin.Context) {
 		problemDetail := models.ProblemDetails{
 			Title:  "System failure",
 			Status: http.StatusInternalServerError,
-			Detail: err.Error(),
+			Detail: "Failed to read request body",
 			Cause:  "SYSTEM_FAILURE",
 		}
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, problemDetail.Cause)
@@ -438,11 +438,11 @@ func (s *Server) HTTPN1N2MessageSubscribe(c *gin.Context) {
 
 	err = openapi.Deserialize(&ueN1N2InfoSubscriptionCreateData, requestBody, applicationjson)
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "Failed to deserialize request body",
 		}
 		logger.CommLog.Errorln(problemDetail)
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
@@ -476,7 +476,7 @@ func (s *Server) HTTPAMFStatusChangeSubscribe(c *gin.Context) {
 		problemDetail := models.ProblemDetails{
 			Title:  "System failure",
 			Status: http.StatusInternalServerError,
-			Detail: err.Error(),
+			Detail: "Failed to read request body",
 			Cause:  "SYSTEM_FAILURE",
 		}
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, problemDetail.Cause)
@@ -486,11 +486,11 @@ func (s *Server) HTTPAMFStatusChangeSubscribe(c *gin.Context) {
 
 	err = openapi.Deserialize(&subscriptionData, requestBody, applicationjson)
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		problemDetail := fmt.Sprintf("Failed to deserialize request body: %v", err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "Failed to deserialize request body",
 		}
 		logger.CommLog.Errorln(problemDetail)
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))

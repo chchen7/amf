@@ -346,7 +346,7 @@ func (ue *AmfUe) DetachRanUe(anType models.AccessType) {
 	business_metrics.IncrUeCmIdleStateGauge(anType)
 	business_metrics.DecrUeCmConnectedStateGauge(anType)
 	// We want only to decrement the ue connectivity gauge if we remove the ran connection of the registered ue.
-	if ue.State[anType] != nil && ue.State[anType].Current() == Registered {
+	if ue.State[anType] != nil && ue.State[anType].Is(Registered) {
 		business_metrics.DecrUeConnectivityGauge(anType)
 	}
 
@@ -1019,4 +1019,74 @@ func (ue *AmfUe) StopT3555() {
 	ue.GmmLog.Infof("Stop T3555 timer")
 	ue.T3555.Stop()
 	ue.T3555 = nil // clear the timer
+}
+
+func (ue *AmfUe) CheckSliceAvailabilityInCurrentRan(targetSnssai models.Snssai, anType models.AccessType) bool {
+	if ue.RanUe[anType] == nil || ue.RanUe[anType].Ran == nil {
+		ue.GmmLog.Warn("CheckSliceAvailabilityInCurrentRan: RanUe or Ran is nil")
+		return false
+	}
+
+	return ue.CheckSliceAvailabilityInRan(targetSnssai, ue.RanUe[anType].Ran, ue.Tai)
+}
+
+func (ue *AmfUe) CheckSliceAvailabilityInTargetRan(
+	targetSnssai models.Snssai,
+	targetRan *AmfRan,
+	targetTai models.Tai,
+) bool {
+	return ue.CheckSliceAvailabilityInRan(targetSnssai, targetRan, targetTai)
+}
+
+func (ue *AmfUe) CheckSliceAvailabilityInRan(targetSnssai models.Snssai, ran *AmfRan, targetTai models.Tai) bool {
+	if ran == nil {
+		ue.GmmLog.Warn("CheckSliceAvailabilityInRan: Ran is nil")
+		return false
+	}
+
+	for _, taiItem := range ran.SupportedTAList {
+		if taiItem.Tai.Tac == targetTai.Tac &&
+			taiItem.Tai.PlmnId.Mcc == targetTai.PlmnId.Mcc &&
+			taiItem.Tai.PlmnId.Mnc == targetTai.PlmnId.Mnc {
+			for _, supportedSnssai := range taiItem.SNssaiList {
+				if snssaiSupported(targetSnssai, supportedSnssai) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func (ue *AmfUe) CheckSliceAvailabilityInRegistrationArea(targetSnssai models.Snssai, anType models.AccessType) bool {
+	// if ue is in CONNECTED state, directly check the current RAN
+	if ue.CmConnect(anType) {
+		return ue.CheckSliceAvailabilityInCurrentRan(targetSnssai, anType)
+	}
+	// if ue is in IDLE state, need to check all TAIs in Registration Area
+	// according to TS 23.502 4.2.3.3 Step 3b:
+	// if any TAI in the Registration Area supports the requested S-NSSAI, paging is allowed
+	RegistrationAreaMap := make(map[string]bool)
+
+	for _, tai := range ue.RegistrationArea[anType] {
+		key := tai.PlmnId.Mcc + tai.PlmnId.Mnc + tai.Tac
+		RegistrationAreaMap[key] = true
+	}
+	supported := false
+	ue.ServingAMF().AmfRanPool.Range(func(key, value interface{}) bool {
+		ran := value.(*AmfRan)
+		for _, supportedItem := range ran.SupportedTAList {
+			taiKey := supportedItem.Tai.PlmnId.Mcc + supportedItem.Tai.PlmnId.Mnc + supportedItem.Tai.Tac
+			if _, exists := RegistrationAreaMap[taiKey]; exists {
+				for _, supportedSnssai := range supportedItem.SNssaiList {
+					if snssaiSupported(targetSnssai, supportedSnssai) {
+						supported = true
+						return false
+					}
+				}
+			}
+		}
+		return true
+	})
+	return supported
 }

@@ -3,6 +3,7 @@ package ngap
 import (
 	"encoding/hex"
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -91,6 +92,54 @@ func NewAmfContext(amfCtx *amf_context.AMFContext) {
 			Enable: true, ExpireTime: 6000000000, MaxRetryTimes: 4,
 		},
 	}
+}
+
+func TestHandlePathSwitchRequestKeepsStoredUESecurityCapabilityOnMismatch(t *testing.T) {
+	amfSelf := amf_context.GetSelf()
+	NewAmfContext(amfSelf)
+
+	sourceRan := NewAmfRan(nil)
+	sourceRan.AnType = "3GPP_ACCESS"
+	ranUe := &amf_context.RanUe{
+		Ran:         sourceRan,
+		RanUeNgapId: 1,
+		AmfUeNgapId: 1,
+		Log:         sourceRan.Log,
+	}
+	sourceRan.RanUeList.Store(ranUe.RanUeNgapId, ranUe)
+	amfSelf.RanUePool.Store(ranUe.AmfUeNgapId, ranUe)
+
+	amfUe := amfSelf.NewAmfUe("imsi-208930000007487")
+	amfUe.SecurityContextAvailable = true
+	amfUe.NgKsi.Ksi = 1
+	amfUe.Kamf = strings.Repeat("11", 32)
+	amfUe.NH = []byte(strings.Repeat("\x22", 32))
+	amfUe.UESecurityCapability = ie.UESecCapability{
+		Length:     2,
+		IA2_128_5G: true,
+	}
+
+	ranUe.AmfUe = amfUe
+	amfUe.RanUe["3GPP_ACCESS"] = ranUe
+
+	targetRan := NewAmfRan(nil)
+	targetRan.AnType = "3GPP_ACCESS"
+	sourceAMFUeNgapID := ngapType.AMFUENGAPID{Value: ranUe.AmfUeNgapId}
+	ranUeNgapID := ngapType.RANUENGAPID{Value: 2}
+	received := &ngapType.UESecurityCapabilities{
+		NRencryptionAlgorithms: &ngapType.NRencryptionAlgorithms{Value: aper.BitString{
+			Bytes: []byte{0x00, 0x00}, BitLength: 16,
+		}},
+		NRintegrityProtectionAlgorithms: &ngapType.NRintegrityProtectionAlgorithms{Value: aper.BitString{
+			Bytes: []byte{0x00, 0x00}, BitLength: 16,
+		}},
+	}
+
+	handlePathSwitchRequestMain(targetRan, &ranUeNgapID, &sourceAMFUeNgapID, nil, received, nil, nil)
+
+	require.True(t, amfUe.UESecurityCapability.IA2_128_5G)
+	require.False(t, amfUe.UESecurityCapability.IA1_128_5G)
+	require.False(t, amfUe.UESecurityCapability.IA3_128_5G)
 }
 
 func BuildInitialUEMessage(

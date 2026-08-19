@@ -1315,15 +1315,15 @@ func handlePathSwitchRequestMain(ran *context.AmfRan,
 	}
 
 	if uESecurityCapabilities != nil {
-		amfUe.UESecurityCapability.Length = 2
-		amfUe.UESecurityCapability.EA1_128_5G = uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0]&0x80 != 0
-		amfUe.UESecurityCapability.EA2_128_5G = uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0]&0x40 != 0
-		amfUe.UESecurityCapability.EA3_128_5G = uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0]&0x20 != 0
-		integrityAlgorithms := uESecurityCapabilities.NRintegrityProtectionAlgorithms.Value.Bytes[0]
-		amfUe.UESecurityCapability.IA1_128_5G = integrityAlgorithms&0x80 != 0
-		amfUe.UESecurityCapability.IA2_128_5G = integrityAlgorithms&0x40 != 0
-		amfUe.UESecurityCapability.IA3_128_5G = integrityAlgorithms&0x20 != 0
-		// not support any E-UTRA algorithms
+		storedEA, storedIA := storedNRUESecurityCapability(amfUe)
+		receivedEA, receivedIA := receivedNRUESecurityCapability(uESecurityCapabilities)
+		if storedEA != receivedEA || storedIA != receivedIA {
+			// TODO: Include E-UTRA capability once AmfUe stores it; current NGAP builders only preserve NR bits.
+			ranUe.Log.Warnf("UESecurityCapabilities mismatch in PathSwitchRequest: "+
+				"stored NR(EA=0x%02x, IA=0x%02x), received NR(EA=0x%02x, IA=0x%02x); "+
+				"keep stored UE security capability",
+				storedEA, storedIA, receivedEA, receivedIA)
+		}
 	}
 
 	if rANUENGAPID != nil {
@@ -1336,6 +1336,23 @@ func handlePathSwitchRequestMain(ran *context.AmfRan,
 	var pduSessionResourceReleasedListPSAck ngapType.PDUSessionResourceReleasedListPSAck
 	var pduSessionResourceReleasedListPSFail ngapType.PDUSessionResourceReleasedListPSFail
 
+	var targetTai models.Tai
+
+	if userLocationInformation != nil {
+		switch location := userLocationInformation.Choice.(type) {
+		case *ngapType.UserLocationInformationNR:
+			if location.TAI != nil {
+				targetTai = ngapConvert.TaiToModels(*location.TAI)
+			}
+		case *ngapType.UserLocationInformationEUTRA:
+			if location.TAI != nil {
+				targetTai = ngapConvert.TaiToModels(*location.TAI)
+			}
+		default:
+			ran.Log.Warnf("UserLocationInformation choice is unsupported: %T", userLocationInformation.Choice)
+		}
+	}
+
 	if pduSessionResourceToBeSwitchedInDLList != nil {
 		ranUe.Log.Infof("Send PathSwitchRequestTransfer to SMF")
 		for _, item := range pduSessionResourceToBeSwitchedInDLList.List {
@@ -1346,6 +1363,21 @@ func handlePathSwitchRequestMain(ran *context.AmfRan,
 				ranUe.Log.Warnf("SmContext[PDU Session ID:%d] not found", pduSessionID)
 				// TODO: Check if doing error handling here
 				continue
+			}
+			// TS 23.502 4.9.1.2.2 step 7 filter un-supported S-NSSAI in Target TAI
+			if isValidTai(targetTai) {
+				if !amfUe.CheckSliceAvailabilityInTargetRan(smContext.Snssai(), ran, targetTai) {
+					ranUe.Log.Warnf("Xn Handover Filter: PDU Session %d (S-NSSAI: %+v) "+
+						"not supported in Target TAI %v. Rejecting Path Switch.",
+						pduSessionID, smContext.Snssai(), targetTai.Tac)
+					pduSessionResourceReleasedItem := ngapType.PDUSessionResourceReleasedItemPSFail{}
+					pduSessionResourceReleasedItem.PDUSessionID.Value = int64(pduSessionID)
+					pduSessionResourceReleasedListPSFail.List = append(pduSessionResourceReleasedListPSFail.List,
+						pduSessionResourceReleasedItem)
+					continue
+				}
+			} else {
+				ranUe.Log.Warn("Target TAI is missing; skip proactive S-NSSAI filtering and rely on RAN/SMF failure handling")
 			}
 			response, errResponse, _, err := consumer.GetConsumer().SendUpdateSmContextXnHandover(amfUe, smContext,
 				models.Smf_PDUSess_N2SmInfoType_PATH_SWITCH_REQ, transfer)
@@ -1439,6 +1471,40 @@ func handlePathSwitchRequestMain(ran *context.AmfRan,
 	}
 }
 
+func storedNRUESecurityCapability(amfUe *context.AmfUe) (nrEncryptionAlgorithm, nrIntegrityAlgorithm byte) {
+	if amfUe.UESecurityCapability.EA1_128_5G {
+		nrEncryptionAlgorithm |= 0x80
+	}
+	if amfUe.UESecurityCapability.EA2_128_5G {
+		nrEncryptionAlgorithm |= 0x40
+	}
+	if amfUe.UESecurityCapability.EA3_128_5G {
+		nrEncryptionAlgorithm |= 0x20
+	}
+	if amfUe.UESecurityCapability.IA1_128_5G {
+		nrIntegrityAlgorithm |= 0x80
+	}
+	if amfUe.UESecurityCapability.IA2_128_5G {
+		nrIntegrityAlgorithm |= 0x40
+	}
+	if amfUe.UESecurityCapability.IA3_128_5G {
+		nrIntegrityAlgorithm |= 0x20
+	}
+	return
+}
+
+func receivedNRUESecurityCapability(
+	uESecurityCapabilities *ngapType.UESecurityCapabilities,
+) (nrEncryptionAlgorithm, nrIntegrityAlgorithm byte) {
+	if len(uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes) > 0 {
+		nrEncryptionAlgorithm = uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0] & 0xe0
+	}
+	if len(uESecurityCapabilities.NRintegrityProtectionAlgorithms.Value.Bytes) > 0 {
+		nrIntegrityAlgorithm = uESecurityCapabilities.NRintegrityProtectionAlgorithms.Value.Bytes[0] & 0xe0
+	}
+	return
+}
+
 func handleHandoverRequestAcknowledgeMain(ran *context.AmfRan,
 	targetUe *context.RanUe,
 	rANUENGAPID *ngapType.RANUENGAPID,
@@ -1489,6 +1555,8 @@ func handleHandoverRequestAcknowledgeMain(ran *context.AmfRan,
 	var pduSessionResourceHandoverList ngapType.PDUSessionResourceHandoverList
 	var pduSessionResourceToReleaseList ngapType.PDUSessionResourceToReleaseListHOCmd
 
+	targetTai := targetUe.Tai
+
 	// describe in 23.502 4.9.1.3.2 step11
 	if pDUSessionResourceAdmittedList != nil {
 		targetUe.Log.Infof("Send HandoverRequestAcknowledgeTransfer to SMF")
@@ -1499,6 +1567,16 @@ func handleHandoverRequestAcknowledgeMain(ran *context.AmfRan,
 			if !ok {
 				targetUe.Log.Warnf("SmContext[PDU Session ID:%d] not found", pduSessionID)
 				// TODO: Check if doing error handling here
+				continue
+			}
+			// check snssai allowed in target TAI
+			if !amfUe.CheckSliceAvailabilityInTargetRan(smContext.Snssai(), ran, targetTai) {
+				targetUe.Log.Warnf("Final Slice Check Failed: PDU Session %d (S-NSSAI: %+v) "+
+					"not supported in Target TAI %v. Moving to Release List.",
+					pduSessionID, smContext.Snssai(), targetTai.Tac)
+				releaseItem := ngapType.PDUSessionResourceToReleaseItemHOCmd{}
+				releaseItem.PDUSessionID = item.PDUSessionID
+				pduSessionResourceToReleaseList.List = append(pduSessionResourceToReleaseList.List, releaseItem)
 				continue
 			}
 			resp, errResponse, problemDetails, err := consumer.GetConsumer().SendUpdateSmContextN2HandoverPrepared(amfUe,
@@ -1736,7 +1814,13 @@ func handleHandoverRequiredMain(ran *context.AmfRan,
 					// TODO: Check if doing error handling here
 					continue
 				}
-
+				// filter snssai allowed in target Ran
+				if !amfUe.CheckSliceAvailabilityInTargetRan(smContext.Snssai(), targetRan, tai) {
+					sourceUe.Log.Warnf("N2 Handover Filter (Source Side): PDU Session %d (S-NSSAI: %+v) "+
+						"not supported in Target Ran. Skipping resource allocation.",
+						pduSessionID, smContext.Snssai())
+					continue
+				}
 				response, _, _, err := consumer.GetConsumer().SendUpdateSmContextN2HandoverPreparing(amfUe, smContext,
 					models.Smf_PDUSess_N2SmInfoType_HANDOVER_REQUIRED,
 					octetStringValue(pDUSessionResourceHoItem.HandoverRequiredTransfer), "", &targetId)

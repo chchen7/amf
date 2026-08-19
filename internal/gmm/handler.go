@@ -645,9 +645,12 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 	if len(ue.SubscribedNssai) == 0 {
 		getSubscribedNssai(ue)
 	}
-
 	if err := handleRequestedNssai(ue, anType); err != nil {
 		return err
+	}
+	if len(ue.AllowedNssai[anType]) == 0 {
+		gmm_message.SendRegistrationReject(ue.RanUe[anType], ie.Cause5GMM_NoNwSlicesAvailable, "")
+		return fmt.Errorf("no allowed NSSAI for UE")
 	}
 
 	if ue.RegistrationRequest.Capability5GMM != nil {
@@ -802,11 +805,9 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ue *context.AmfUe, anType mod
 	if len(ue.SubscribedNssai) == 0 {
 		getSubscribedNssai(ue)
 	}
-
 	if err := handleRequestedNssai(ue, anType); err != nil {
 		return err
 	}
-
 	if ue.RegistrationRequest.Capability5GMM != nil {
 		ue.Capability5GMM = *ue.RegistrationRequest.Capability5GMM
 	} else if ue.RegistrationType5GS != ie.RegType_PeriodicRegUpdating {
@@ -878,14 +879,12 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ue *context.AmfUe, anType mod
 				reactivationResult, errPduSessionId, errCause)
 		}
 	}
-
 	var pduSessionStatus *[psiArraySize]bool
 	if ue.RegistrationRequest.PDUSessStatus != nil {
 		pduSessionStatus = new([psiArraySize]bool)
 		pduSessionPsi := ue.RegistrationRequest.PDUSessStatus.PSI
 		releaseInactivePDUSession(ue, anType, &pduSessionPsi, pduSessionStatus)
 	}
-
 	// AllowedPDUSessionStatus indicate to the network PDU sessions associated with non-3GPP access that
 	// are allowed to be re-established over 3GPP access
 	if ue.RegistrationRequest.AllowedPDUSessStatus != nil &&
@@ -1126,8 +1125,19 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType) error {
 
 		needSliceSelection := false
 		for _, requestedSnssai := range requestedNssai {
+			if requestedSnssai.ServingSnssai == nil {
+				ue.GmmLog.Warn("RequestedNssai has nil ServingSnssai")
+				needSliceSelection = true
+				continue
+			}
 			ue.GmmLog.Infof("RequestedNssai - ServingSnssai: %+v, HomeSnssai: %+v",
 				requestedSnssai.ServingSnssai, requestedSnssai.HomeSnssai)
+			isSupported := ue.CheckSliceAvailabilityInCurrentRan(*requestedSnssai.ServingSnssai, anType)
+			if !isSupported {
+				logger.GmmLog.Warnf("RequestedNssai[%+v] is not supported in RA", requestedSnssai.ServingSnssai)
+				needSliceSelection = true
+				continue
+			}
 			if ue.InSubscribedNssai(*requestedSnssai.ServingSnssai) {
 				allowedSnssai := models.Nssf_NSSel_AllowedSnssai{
 					AllowedSnssai: &models.Snssai{
@@ -1281,7 +1291,16 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType) error {
 	// then use ue subscribed snssai which is marked as default as allowed nssai
 	if len(ue.AllowedNssai[anType]) == 0 {
 		for _, snssai := range ue.SubscribedNssai {
+			if snssai.SubscribedSnssai == nil {
+				logger.GmmLog.Warn("SubscribedNssai has nil SubscribedSnssai")
+				continue
+			}
 			if snssai.DefaultIndication {
+				isSupported := ue.CheckSliceAvailabilityInCurrentRan(*snssai.SubscribedSnssai, anType)
+				if !isSupported {
+					logger.GmmLog.Warnf("SubscribedNssai[%+v] is not supported in RA", snssai.SubscribedSnssai)
+					continue
+				}
 				if amfSelf.InPlmnSupportList(*snssai.SubscribedSnssai) {
 					allowedSnssai := models.Nssf_NSSel_AllowedSnssai{
 						AllowedSnssai: snssai.SubscribedSnssai,
@@ -1290,6 +1309,9 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType) error {
 				}
 			}
 		}
+	}
+	if len(ue.AllowedNssai[anType]) == 0 {
+		logger.GmmLog.Warnf("No AllowedNssai %v", anType)
 	}
 	return nil
 }
@@ -1369,6 +1391,21 @@ func reactivatePendingULDataPDUSession(ue *context.AmfUe, anType models.AccessTy
 			// However, in the case of Mo-data etc., it cannot be skipped because AMF need to know
 			// latest N2SmInformation even if the UE has known the N2Information received at
 			// previous N1N2MessageTransfer.
+			return true
+		}
+
+		if !ue.CheckSliceAvailabilityInCurrentRan(smContext.Snssai(), anType) {
+			ue.GmmLog.Warnf("NS-AoS Check Failed: PDU Session[%d] S-NSSAI[%+v] not supported by current RAN",
+				pduSessionID, smContext.Snssai())
+			// update ConfigurationUpdateCommandFlags
+			if ue.ConfigurationUpdateCommandFlags == nil {
+				ue.ConfigurationUpdateCommandFlags = &context.ConfigurationUpdateCommandFlags{}
+			}
+			ue.ConfigurationUpdateCommandFlags.NeedAllowedNSSAI = true
+			// TS 24.501 5.6.1.4 return #69
+			reactivationResult[pduSessionID] = false
+			errPduSessionId = append(errPduSessionId, uint8(pduSessionID))
+			errCause = append(errCause, ie.Cause5GMM_InsufRsrcForSpecificSlice)
 			return true
 		}
 
@@ -1757,7 +1794,10 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 	ue.StopT3565()
 
 	amfSelf := context.GetSelf()
-
+	if ue.RanUe[anType] != nil {
+		ue.Location = ue.RanUe[anType].Location
+		ue.Tai = ue.RanUe[anType].Tai
+	}
 	// Check TAI
 	if !context.InTaiList(ue.Tai, amfSelf.SupportTaiLists) {
 		ue.GmmLog.Warnf("Service Request rejected: UE TAI %v is not in AMF SupportTaiLists", ue.Tai)
@@ -1993,6 +2033,12 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 	}
 	if len(errPduSessionId) != 0 {
 		ue.GmmLog.Info(errPduSessionId, errCause)
+	}
+	// Send Configuration Update Command if needed
+	if ue.ConfigurationUpdateCommandFlags != nil {
+		ue.GmmLog.Info("Triggering Configuration Update due to Service Request results")
+		gmm_message.SendConfigurationUpdateCommand(ue, anType, ue.ConfigurationUpdateCommandFlags)
+		ue.ConfigurationUpdateCommandFlags = nil
 	}
 	ue.N1N2Message = nil
 	return nil
