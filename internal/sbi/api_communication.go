@@ -156,9 +156,11 @@ func (s *Server) HTTPAMFStatusChangeSubscribeModify(c *gin.Context) {
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
 			Detail: "Failed to deserialize request body",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
 		logger.CommLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
@@ -205,9 +207,11 @@ func (s *Server) HTTPCreateUEContext(c *gin.Context) {
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
 			Detail: "Failed to deserialize request body",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
 		logger.CommLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText((http.StatusBadRequest)))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
@@ -239,9 +243,11 @@ func (s *Server) HTTPEBIAssignment(c *gin.Context) {
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
 			Detail: "Failed to deserialize request body",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
 		logger.CommLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
@@ -273,9 +279,11 @@ func (s *Server) HTTPRegistrationStatusUpdate(c *gin.Context) {
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
 			Detail: "Failed to deserialize request body",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
 		logger.CommLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
@@ -307,9 +315,11 @@ func (s *Server) HTTPReleaseUEContext(c *gin.Context) {
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
 			Detail: "Failed to deserialize request body",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
 		logger.CommLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
@@ -350,9 +360,11 @@ func (s *Server) HTTPUEContextTransfer(c *gin.Context) {
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
 			Detail: "Failed to deserialize request body",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
 		logger.CommLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
@@ -406,9 +418,11 @@ func (s *Server) HTTPN1N2MessageTransfer(c *gin.Context) {
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
 			Detail: "Failed to deserialize request body",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
 		logger.CommLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
@@ -443,9 +457,11 @@ func (s *Server) HTTPN1N2MessageSubscribe(c *gin.Context) {
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
 			Detail: "Failed to deserialize request body",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
 		logger.CommLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
@@ -491,9 +507,11 @@ func (s *Server) HTTPAMFStatusChangeSubscribe(c *gin.Context) {
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
 			Detail: "Failed to deserialize request body",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
 		logger.CommLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}

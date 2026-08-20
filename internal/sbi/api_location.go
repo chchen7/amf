@@ -70,14 +70,15 @@ func (s *Server) HTTPProvideLocationInfo(c *gin.Context) {
 
 	err = openapi.Deserialize(&requestLocInfo, requestBody, "application/json")
 	if err != nil {
-		problemDetail := "[Request Body] " + err.Error()
+		logger.LocationLog.Errorf("%s%+v", reqbody, err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "The request body is malformed or does not match the expected schema.",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
-		logger.LocationLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}

@@ -73,14 +73,15 @@ func (s *Server) HTTPAmPolicyControlUpdateNotifyUpdate(c *gin.Context) {
 
 	err = openapi.Deserialize(&policyUpdate, requestBody, "application/json")
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		logger.CallbackLog.Errorf("%s%+v", reqbody, err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "The request body is malformed or does not match the expected schema.",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
-		logger.CallbackLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
@@ -106,14 +107,15 @@ func (s *Server) HTTPAmPolicyControlUpdateNotifyTerminate(c *gin.Context) {
 
 	err = openapi.Deserialize(&terminationNotification, requestBody, "application/json")
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		logger.CallbackLog.Errorf("%s%+v", reqbody, err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "The request body is malformed or does not match the expected schema.",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
-		logger.CallbackLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
@@ -126,14 +128,15 @@ func (s *Server) HTTPN1MessageNotify(c *gin.Context) {
 
 	err := c.ShouldBindWith(&n1MessageNotify, openapi.MultipartRelatedBinding{})
 	if err != nil {
-		problemDetail := reqbody + err.Error()
+		logger.CallbackLog.Errorf("%s%+v", reqbody, err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "The request body is malformed or does not match the expected schema.",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
-		logger.CallbackLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
@@ -159,14 +162,15 @@ func (s *Server) HTTPSmContextStatusNotify(c *gin.Context) {
 
 	err = openapi.Deserialize(&smContextStatusNotification, requestBody, "application/json")
 	if err != nil {
-		problemDetail := "[Request Body] " + err.Error()
+		logger.CallbackLog.Errorf("%s%+v", reqbody, err)
 		rsp := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Detail: "The request body is malformed or does not match the expected schema.",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
-		logger.CallbackLog.Errorln(problemDetail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, rsp.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
@@ -199,10 +203,12 @@ func (s *Server) HTTPHandleDeregistrationNotification(c *gin.Context) {
 		problemDetails := models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
-			Detail: reqbody + err.Error(),
+			Detail: "The request body is malformed or does not match the expected schema.",
+			Cause:  "INVALID_MSG_FORMAT",
 		}
-		logger.CallbackLog.Errorln(problemDetails.Detail)
-		c.Set(sbi.IN_PB_DETAILS_CTX_STR, http.StatusText(http.StatusBadRequest))
+		logger.CallbackLog.Errorf("%s%+v", reqbody, err)
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, problemDetails.Cause)
+		c.Header("Content-Type", "application/problem+json")
 		c.JSON(http.StatusBadRequest, problemDetails)
 		return
 	}
